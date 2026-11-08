@@ -1,6 +1,6 @@
 # Kuha
 
-**Download for Windows:** https://github.com/dewdew-del/videodownloader/releases/latest
+**Download for Windows:** https://github.com/dewdew-del/kuha/releases/latest
 
 > Windows 10/11, 64-bit. The installer is about 234 MB because yt-dlp and FFmpeg come bundled, so there's nothing else to install.
 
@@ -41,8 +41,8 @@ Video sites like YouTube block downloads that come from cloud servers (Vercel, R
 Requires [Node.js](https://nodejs.org/) 18 or newer, on Windows.
 
 ```powershell
-git clone https://github.com/dewdew-del/videodownloader.git
-cd videodownloader
+git clone https://github.com/dewdew-del/kuha.git
+cd kuha
 npm install
 npm run fetch-tools   # downloads yt-dlp, ffmpeg and ffprobe into .\vendor
 npm start             # run the app

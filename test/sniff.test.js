@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { classify, fromHeaders, createFinds } = require("../src/sniff");
+const { classify, fromHeaders, createFinds, pageName } = require("../src/sniff");
 
 const MB = 1024 * 1024;
 const c = (o) => classify({ statusCode: 200, contentType: "", contentLength: null, ...o });
@@ -102,4 +102,13 @@ test("finds: an endless feed stays at 30 entries, newest kept, site entry kept",
   assert.equal(l.length, 30);
   assert.equal(l[0].kind, "site");
   assert.equal(f.get(l[29].id).url, "https://a/39.m3u8");
+});
+
+test("pageName: real titles pass through, address-like titles become the file or site name", () => {
+  assert.equal(pageName("Cooking demo", "https://a.com/watch"), "Cooking demo");
+  assert.equal(pageName("a.com/vids/Big%20Buck.mp4", "https://a.com/vids/Big%20Buck.mp4"), "Big Buck");
+  assert.equal(pageName("", "https://a.com/"), "a.com");
+  assert.equal(pageName("a.com", "https://a.com/"), "a.com");
+  assert.equal(pageName("a.com/100%.mp4", "https://a.com/100%.mp4"), "100%");
+  assert.equal(pageName("", "not a url"), "Video");
 });

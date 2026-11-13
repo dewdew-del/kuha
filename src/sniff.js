@@ -54,6 +54,25 @@ function detail(entry) {
   return entry.sizeBytes ? `${name}, ${Math.max(1, Math.round(entry.sizeBytes / MB))} MB` : name;
 }
 
+// A page with no title of its own (e.g. a video opened directly) reports its address as the title.
+// Use the file name, or the site name, so labels and saved files get a sensible name.
+function pageName(title, url) {
+  if (title && !String(url).includes(title)) return title;
+  try {
+    const u = new URL(url);
+    const last = u.pathname.split("/").filter(Boolean).pop();
+    if (!last) return u.hostname;
+    const name = last.replace(/\.(mp4|webm|mov|mkv|m4v)$/i, ""); // the saved file gets its own extension
+    try {
+      return decodeURIComponent(name);
+    } catch {
+      return name; // a stray "%" that isn't an escape
+    }
+  } catch {
+    return title || "Video";
+  }
+}
+
 function createFinds() {
   let items = [];
   let nextId = 1; // never reset, so an id from an earlier page can't match a new find
@@ -86,4 +105,4 @@ function createFinds() {
   };
 }
 
-module.exports = { classify, fromHeaders, createFinds };
+module.exports = { classify, fromHeaders, createFinds, pageName };

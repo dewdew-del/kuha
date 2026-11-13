@@ -10,15 +10,19 @@ async function call(method, ...args) {
   return r.value;
 }
 
+// Subscribe to an event from main; returns the unsubscribe function.
+const on = (channel) => (cb) => {
+  const listener = (_e, data) => cb(data);
+  ipcRenderer.on(`kuha:${channel}`, listener);
+  return () => ipcRenderer.removeListener(`kuha:${channel}`, listener);
+};
+
 contextBridge.exposeInMainWorld("kuha", {
   getInfo: (url) => call("getInfo", url),
   download: (opts) => call("download", opts),
+  downloadFound: (opts) => call("downloadFound", opts),
   cancel: (id) => call("cancel", id),
-  onProgress: (cb) => {
-    const listener = (_e, data) => cb(data);
-    ipcRenderer.on("kuha:progress", listener);
-    return () => ipcRenderer.removeListener("kuha:progress", listener);
-  },
+  onProgress: on("progress"),
   openFile: (p) => call("openFile", p),
   showInFolder: (p) => call("showInFolder", p),
   getSettings: () => call("getSettings"),
@@ -26,4 +30,15 @@ contextBridge.exposeInMainWorld("kuha", {
   chooseFolder: () => call("chooseFolder"),
   getVersions: () => call("getVersions"),
   updateYtdlp: () => call("updateYtdlp"),
+  browse: {
+    go: (text) => call("browseGo", text),
+    back: () => call("browseBack"),
+    forward: () => call("browseForward"),
+    reload: () => call("browseReload"),
+    stop: () => call("browseStop"),
+    setBounds: (rect) => call("browseSetBounds", rect),
+    setVisible: (visible) => call("browseSetVisible", visible),
+    onState: on("browseState"),
+    onFound: on("found"),
+  },
 });

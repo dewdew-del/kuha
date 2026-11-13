@@ -19,7 +19,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     await sleep(500);
     try {
       const list = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
-      page = list.find((t) => t.type === "page");
+      // Kuha's own screen, not the page view (which is a "page" target too).
+      page = list.find((t) => t.type === "page" && t.url.includes("renderer/index.html"));
     } catch {}
   }
   if (!page) throw new Error("Kuha window not found");

@@ -23,6 +23,12 @@ test("cleanError: MP3 from a video with no audio track gives the no-sound messag
   );
 });
 
+test("cleanError: DRM wins over the login message", () => {
+  const msg = "This video is copy-protected (DRM), so it can't be downloaded.";
+  assert.equal(cleanError("ERROR: [generic] x: This video is DRM protected"), msg);
+  assert.equal(cleanError("ERROR: The requested site is known to use DRM protection. Use --cookies to log in"), msg);
+});
+
 test("cleanError: empty stderr gives Download failed.", () => {
   assert.equal(cleanError(""), "Download failed.");
 });

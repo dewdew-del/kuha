@@ -65,14 +65,15 @@ function createDownloader({ ytdlp, ffmpeg, getSaveDir, spawnFn = childProcess.sp
     });
   }
 
-  function start({ url, format, quality }) {
+  // referer, userAgent and title are only set for videos found on a page (see buildArgs).
+  function start({ url, format, quality, referer, userAgent, title }) {
     // Two jobs for the same link + format would write to the same file at once.
     for (const j of jobs.values()) {
       if (j.url === url && j.format === format && !j.finished && j.status !== "cancelled") {
         throw new Error("Already downloading this link.");
       }
     }
-    const job = { id: crypto.randomUUID(), url, format, quality, status: "queued", progress: 0, file: null, error: null, child: null, dests: new Set() };
+    const job = { id: crypto.randomUUID(), url, format, quality, referer, userAgent, title, status: "queued", progress: 0, file: null, error: null, child: null, dests: new Set() };
     jobs.set(job.id, job);
     queue.push(job);
     emit(job);
@@ -87,7 +88,8 @@ function createDownloader({ ytdlp, ffmpeg, getSaveDir, spawnFn = childProcess.sp
   function run(job) {
     running++;
     job.status = "downloading";
-    const args = buildArgs({ url: job.url, format: job.format, quality: job.quality, saveDir: getSaveDir(), ffmpegPath: ffmpeg });
+    const { url, format, quality, referer, userAgent, title } = job;
+    const args = buildArgs({ url, format, quality, referer, userAgent, title, saveDir: getSaveDir(), ffmpegPath: ffmpeg });
     const child = spawnFn(ytdlp, args, { windowsHide: true });
     job.child = child;
     let out = "";

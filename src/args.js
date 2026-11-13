@@ -1,7 +1,25 @@
 // Pure helpers for talking to yt-dlp: build its arguments and read its output.
+const crypto = require("crypto");
 const path = require("path");
 
-function buildArgs({ url, format, quality, saveDir, ffmpegPath }) {
+// A page title as a file name. "%" goes too: it is special in yt-dlp's -o template.
+function safeTitle(title) {
+  const clean = String(title ?? "")
+    .replace(/[\/\\:*?"<>|%\x00-\x1f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 150)
+    .replace(/[. ]+$/, "");
+  return clean || "video";
+}
+
+function buildArgs({ url, format, quality, saveDir, ffmpegPath, referer, userAgent, title }) {
+  // Found videos have no yt-dlp title or id, so they are named after the page plus a hash
+  // of the address. The hash keeps two videos from the same page apart.
+  const name = title
+    ? `${safeTitle(title)} [${crypto.createHash("sha1").update(url).digest("hex").slice(0, 8)}].%(ext)s`
+    : // The id keeps same-titled videos (e.g. "Video by user") from overwriting each other.
+      "%(title).150B [%(id)s].%(ext)s";
   const args = [
     "--no-playlist",
     "--newline",
@@ -13,9 +31,13 @@ function buildArgs({ url, format, quality, saveDir, ffmpegPath }) {
     // --print implies --quiet; turn progress and "Destination:" lines back on.
     "--no-quiet", "--progress",
     "--ffmpeg-location", ffmpegPath,
-    // The id keeps same-titled videos (e.g. "Video by user") from overwriting each other.
-    "-o", path.join(saveDir, "%(title).150B [%(id)s].%(ext)s"),
+    // Streams come as hundreds of small pieces; fetching 8 at once is much faster than one by one.
+    "--concurrent-fragments", "8",
+    "-o", path.join(saveDir, name),
   ];
+  // Many sites refuse a video request that doesn't come from their own page.
+  if (referer) args.push("--referer", referer);
+  if (userAgent) args.push("--user-agent", userAgent);
   if (format === "mp3") {
     args.push("-x", "--audio-format", "mp3", "--audio-quality", "0");
   } else {
@@ -49,4 +71,4 @@ function parseFilepath(stdout) {
   return null;
 }
 
-module.exports = { buildArgs, parseProgress, isConverting, parseFilepath };
+module.exports = { buildArgs, safeTitle, parseProgress, isConverting, parseFilepath };

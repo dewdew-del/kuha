@@ -197,3 +197,14 @@ test("getInfo rejects with the friendly error", async () => {
   spawnFn.children[0].exit(1);
   await assert.rejects(p, /This site can't be read right now/);
 });
+
+test("start passes referer, user agent and title to yt-dlp, and omits them by default", () => {
+  const { d, spawnFn } = setup();
+  d.start({ url: "https://cdn/x.m3u8", format: "mp4", quality: "best", referer: "https://site/p", userAgent: "UA/1", title: "T" });
+  d.start({ url: "https://x/v", format: "mp4", quality: "best" });
+  const [a, b] = spawnFn.children.map((ch) => ch.args);
+  assert.equal(a[a.indexOf("--referer") + 1], "https://site/p");
+  assert.equal(a[a.indexOf("--user-agent") + 1], "UA/1");
+  assert.ok(a[a.indexOf("-o") + 1].includes("T ["));
+  assert.ok(!b.includes("--referer"));
+});

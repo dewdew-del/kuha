@@ -1,7 +1,8 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("path");
-const { buildArgs, parseProgress, isConverting, parseFilepath } = require("../src/args");
+const crypto = require("crypto");
+const { buildArgs, safeTitle, parseProgress, isConverting, parseFilepath } = require("../src/args");
 
 const base = { url: "https://example.com/v", saveDir: "C:\\Users\\a\\Downloads\\Kuha", ffmpegPath: "C:\\tools\\ffmpeg.exe" };
 const formatOf = (args) => args[args.indexOf("-f") + 1];
@@ -47,6 +48,39 @@ test("buildArgs always: common flags, output template, url last", () => {
     assert.equal(a[a.indexOf("-o") + 1], path.join(base.saveDir, "%(title).150B [%(id)s].%(ext)s"));
     assert.equal(a[a.length - 1], base.url);
   }
+});
+
+test("buildArgs without extras adds no referer or user agent", () => {
+  const a = buildArgs({ ...base, format: "mp4", quality: "best" });
+  assert.ok(!a.includes("--referer"));
+  assert.ok(!a.includes("--user-agent"));
+});
+
+test("buildArgs always downloads stream pieces 8 at a time", () => {
+  for (const format of ["mp4", "mp3"]) {
+    const a = buildArgs({ ...base, format, quality: "best" });
+    assert.equal(a[a.indexOf("--concurrent-fragments") + 1], "8");
+  }
+});
+
+test("buildArgs with referer, user agent and title", () => {
+  const url = "https://cdn.example.com/v/master.m3u8";
+  const a = buildArgs({ ...base, url, format: "mp4", quality: "best", referer: "https://example.com/watch", userAgent: "UA/1", title: "Cooking demo" });
+  assert.equal(a[a.indexOf("--referer") + 1], "https://example.com/watch");
+  assert.equal(a[a.indexOf("--user-agent") + 1], "UA/1");
+  const hash = crypto.createHash("sha1").update(url).digest("hex").slice(0, 8);
+  assert.equal(a[a.indexOf("-o") + 1], path.join(base.saveDir, `Cooking demo [${hash}].%(ext)s`));
+  assert.equal(a[a.length - 1], url);
+});
+
+test("safeTitle makes any page title a legal file name", () => {
+  assert.equal(safeTitle('a/b\\c:d*e?f"g<h>i|j'), "a b c d e f g h i j");
+  assert.equal(safeTitle("100% real\tdeal\n"), "100 real deal");
+  assert.equal(safeTitle("  spaced   out.. "), "spaced out");
+  assert.equal(safeTitle(""), "video");
+  assert.equal(safeTitle(" ... "), "video");
+  assert.equal(safeTitle(undefined), "video");
+  assert.equal(safeTitle("x".repeat(300)).length, 150);
 });
 
 test("parseProgress reads the percent from a download line", () => {

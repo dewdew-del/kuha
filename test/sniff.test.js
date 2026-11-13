@@ -112,3 +112,12 @@ test("pageName: real titles pass through, address-like titles become the file or
   assert.equal(pageName("a.com/100%.mp4", "https://a.com/100%.mp4"), "100%");
   assert.equal(pageName("", "not a url"), "Video");
 });
+
+test("finds: identical labels are numbered so they can be told apart", () => {
+  const f = createFinds();
+  f.add({ kind: "hls", url: "https://a/master.m3u8" });
+  f.add({ kind: "hls", url: "https://a/720.m3u8" });
+  f.add({ kind: "file", url: "https://a/v.mp4" });
+  f.add({ kind: "hls", url: "https://a/360.m3u8" });
+  assert.deepEqual(f.list("Demo").map((x) => x.label), ["Demo (Stream)", "Demo (Stream 2)", "Demo (MP4)", "Demo (Stream 3)"]);
+});

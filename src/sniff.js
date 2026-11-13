@@ -89,13 +89,21 @@ function createFinds() {
     return true;
   }
 
-  const list = (pageTitle) =>
-    items.map((x) => ({
-      id: x.id,
-      kind: x.kind,
-      label: x.kind === "site" ? x.title || "Video" : `${pageTitle || "Video"} (${detail(x)})`,
-      sizeBytes: x.sizeBytes,
-    }));
+  function list(pageTitle) {
+    // A stream often shows up as several addresses (the main list plus one per quality);
+    // repeats are numbered so the user can tell them apart.
+    const seen = new Map();
+    return items.map((x) => {
+      let label = x.title || "Video";
+      if (x.kind !== "site") {
+        const d = detail(x);
+        const n = (seen.get(d) || 0) + 1;
+        seen.set(d, n);
+        label = `${pageTitle || "Video"} (${n > 1 ? `${d} ${n}` : d})`;
+      }
+      return { id: x.id, kind: x.kind, label, sizeBytes: x.sizeBytes };
+    });
+  }
 
   return {
     add,

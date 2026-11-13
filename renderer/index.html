@@ -11,7 +11,7 @@
   <header>
     <div>
       <h1>Kuha</h1>
-      <p>Paste a video link. Get MP4 or MP3.</p>
+      <p>Open any page with a video. Get MP4 or MP3.</p>
     </div>
     <button id="openSettings" type="button" class="icon" aria-label="Settings" title="Settings">⚙</button>
   </header>
@@ -19,55 +19,76 @@
   <div id="warn" class="warn" hidden></div>
 
   <nav class="tabs" role="tablist">
-    <button type="button" role="tab" class="on" data-tab="single" aria-selected="true">Single link</button>
-    <button type="button" role="tab" data-tab="batch" aria-selected="false">Batch download</button>
+    <button type="button" role="tab" class="on" data-tab="browse" aria-selected="true">Browse</button>
+    <button type="button" role="tab" data-tab="batch" aria-selected="false">Batch</button>
+    <button type="button" role="tab" data-tab="downloads" aria-selected="false">Downloads <span id="dlCount" class="count"></span></button>
   </nav>
 
-  <section class="card">
-    <div id="single">
-      <label for="link">Video link</label>
-      <div class="inputrow">
-        <input id="link" type="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off" spellcheck="false" />
-        <button id="paste" type="button" class="ghost">Paste</button>
-      </div>
-      <div id="preview" class="preview" hidden>
-        <div class="thumb"><img alt="" /><span class="dur"></span></div>
-        <div>
-          <div class="ptitle"></div>
-          <div class="pmeta"></div>
-        </div>
-      </div>
-      <div id="pstatus" class="pstatus" hidden></div>
+  <section id="browse" class="pane">
+    <div class="inputrow addrrow">
+      <button id="back" type="button" class="icon nav" aria-label="Back" title="Back" disabled>←</button>
+      <button id="fwd" type="button" class="icon nav" aria-label="Forward" title="Forward" disabled>→</button>
+      <button id="reload" type="button" class="icon nav" aria-label="Reload" title="Reload" disabled>⟳</button>
+      <input id="addr" type="text" aria-label="Link or site" placeholder="Paste a video link or type a site" autocomplete="off" spellcheck="false" />
+      <button id="goAddr" type="button" class="primary">Go</button>
+    </div>
+    <p id="addrError" class="err" role="alert" hidden></p>
+
+    <!-- The page view (a separate native layer) is laid exactly over this box. -->
+    <div id="pageArea">
+      <p id="hint">Paste a video link or type a site, then press play.</p>
+      <p id="pageError" class="err" role="alert" hidden></p>
     </div>
 
-    <div id="batch" hidden>
-      <label for="links">Links (one per line)</label>
-      <textarea id="links" rows="6" spellcheck="false" placeholder="https://www.youtube.com/watch?v=...&#10;https://www.tiktok.com/@user/video/...&#10;https://www.facebook.com/reel/..."></textarea>
-    </div>
-
-    <div class="row">
-      <div class="seg" role="radiogroup" aria-label="Format">
+    <div id="found" class="foundbar" aria-live="polite" hidden>
+      <label id="foundLabel" for="foundPick">Video found:</label>
+      <select id="foundPick"></select>
+      <div class="seg" role="group" aria-label="Format">
         <button type="button" class="on" data-fmt="mp4">MP4 video</button>
         <button type="button" data-fmt="mp3">MP3 audio</button>
       </div>
-      <select id="quality" aria-label="Video quality">
+      <select class="quality" aria-label="Video quality">
         <option value="best">Best quality</option>
         <option value="1080">1080p</option>
         <option value="720">720p</option>
         <option value="480">480p</option>
         <option value="360">360p</option>
       </select>
-      <button id="go" class="primary" disabled>Download</button>
+      <button id="dlFound" type="button" class="primary">Download</button>
     </div>
   </section>
 
-  <div class="savebar">
-    <span>Saving to: <strong id="saveDir">…</strong></span>
-    <button id="changeFolder" type="button" class="ghost small">Change</button>
-  </div>
+  <section id="batch" class="pane scroll" hidden>
+    <div class="narrow card">
+      <label for="links">Links (one per line)</label>
+      <textarea id="links" rows="8" spellcheck="false" placeholder="https://www.youtube.com/watch?v=...&#10;https://www.tiktok.com/@user/video/...&#10;https://www.facebook.com/reel/..."></textarea>
+      <div class="row">
+        <div class="seg" role="group" aria-label="Format">
+          <button type="button" class="on" data-fmt="mp4">MP4 video</button>
+          <button type="button" data-fmt="mp3">MP3 audio</button>
+        </div>
+        <select class="quality" aria-label="Video quality">
+          <option value="best">Best quality</option>
+          <option value="1080">1080p</option>
+          <option value="720">720p</option>
+          <option value="480">480p</option>
+          <option value="360">360p</option>
+        </select>
+        <button id="go" type="button" class="primary" disabled>Download</button>
+      </div>
+    </div>
+  </section>
 
-  <h2 id="listTitle" hidden>Downloads</h2>
-  <ul id="list"></ul>
+  <section id="downloads" class="pane scroll" hidden>
+    <div class="narrow">
+      <div class="savebar">
+        <span>Saving to: <strong id="saveDir">…</strong></span>
+        <button id="changeFolder" type="button" class="ghost small">Change</button>
+      </div>
+      <p id="noDownloads" class="muted">No downloads yet.</p>
+      <ul id="list"></ul>
+    </div>
+  </section>
 
   <footer>Only download videos you own or have permission to use.</footer>
 </main>

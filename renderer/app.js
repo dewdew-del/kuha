@@ -1,15 +1,20 @@
 // Kuha window logic. Talks to the back end only through window.kuha (preload.js).
 const $ = (s) => document.querySelector(s);
+const $$ = (s) => document.querySelectorAll(s);
 let format = "mp4";
-let mode = "single";
-let singleInfo = null; // preview info for the link in the Single box
+let quality = "best";
+let mode = "browse";
+let page = { url: "", loading: false, canGoBack: false, canGoForward: false, error: null }; // last report from the page view
+let finds = []; // videos found on the current page: {id, kind, label, sizeBytes}
+let userPicked = false; // the user chose a find by hand, so don't jump back to the first
 const cards = new Map(); // job id -> card element
+const running = new Set(); // ids of jobs that haven't finished
 
 // ---------- Start-up ----------
 (async () => {
   const s = await kuha.getSettings();
   setFormat(s.format);
-  $("#quality").value = s.quality;
+  setQuality(s.quality);
   $("#saveDir").textContent = s.saveDir;
   const v = await kuha.getVersions();
   if (!v.ytdlp) showWarn("Kuha is damaged, please reinstall");
@@ -21,32 +26,43 @@ function showWarn(text) {
 }
 
 // ---------- Tabs ----------
-document.querySelectorAll(".tabs button").forEach((b) =>
+$$(".tabs button").forEach((b) =>
   b.addEventListener("click", () => {
     mode = b.dataset.tab;
-    document.querySelectorAll(".tabs button").forEach((x) => {
+    $$(".tabs button").forEach((x) => {
       x.classList.toggle("on", x === b);
       x.setAttribute("aria-selected", String(x === b));
     });
-    $("#single").hidden = mode !== "single";
-    $("#batch").hidden = mode !== "batch";
-    updateButton();
+    $$(".pane").forEach((p) => (p.hidden = p.id !== mode));
+    placeView();
   })
 );
 
-// ---------- Format / quality (remembered as the defaults) ----------
+// ---------- Format / quality (one value each, shown in Browse and Batch, remembered as the defaults) ----------
 function setFormat(f) {
   format = f === "mp3" ? "mp3" : "mp4";
-  document.querySelectorAll(".seg button").forEach((x) => x.classList.toggle("on", x.dataset.fmt === format));
-  $("#quality").disabled = format === "mp3";
+  $$(".seg button").forEach((x) => {
+    x.classList.toggle("on", x.dataset.fmt === format);
+    x.setAttribute("aria-pressed", String(x.dataset.fmt === format));
+  });
+  $$("select.quality").forEach((s) => (s.disabled = format === "mp3"));
 }
-document.querySelectorAll(".seg button").forEach((b) =>
+function setQuality(q) {
+  quality = q;
+  $$("select.quality").forEach((s) => (s.value = q));
+}
+$$(".seg button").forEach((b) =>
   b.addEventListener("click", () => {
     setFormat(b.dataset.fmt);
     kuha.setSettings({ format });
   })
 );
-$("#quality").addEventListener("change", () => kuha.setSettings({ quality: $("#quality").value }));
+$$("select.quality").forEach((s) =>
+  s.addEventListener("change", () => {
+    setQuality(s.value);
+    kuha.setSettings({ quality });
+  })
+);
 
 // ---------- Save folder ----------
 $("#changeFolder").addEventListener("click", chooseFolder);
@@ -55,114 +71,136 @@ async function chooseFolder() {
   $("#saveDir").textContent = s.saveDir;
 }
 
-// ---------- Button state ----------
-const isUrl = (s) => /^https?:\/\/\S+\.\S+/i.test(s);
-function updateButton() {
-  const go = $("#go");
-  if (mode === "single") {
-    go.textContent = "Download";
-    go.disabled = !singleInfo;
-  } else {
-    const n = parseLinks($("#links").value).length;
-    go.textContent = n > 1 ? `Download ${n} links` : "Download";
-    go.disabled = n === 0;
+// ---------- Browse: address bar ----------
+async function openAddress() {
+  const text = $("#addr").value.trim();
+  if (!text) return;
+  // A refused address gets its own line; the page that is already open stays as it is.
+  const err = $("#addrError");
+  err.hidden = true;
+  try {
+    await kuha.browse.go(text);
+    $("#addr").blur(); // so the box can show the real address once the page loads
+  } catch (e) {
+    err.textContent = e.message;
+    err.hidden = false;
   }
+}
+$("#goAddr").addEventListener("click", openAddress);
+$("#addr").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") openAddress();
+});
+$("#addr").addEventListener("focus", () => $("#addr").select());
+$("#back").addEventListener("click", () => kuha.browse.back());
+$("#fwd").addEventListener("click", () => kuha.browse.forward());
+$("#reload").addEventListener("click", () => (page.loading ? kuha.browse.stop() : kuha.browse.reload()));
+
+kuha.browse.onState((s) => {
+  page = s;
+  renderPage();
+});
+
+function renderPage() {
+  const hasPage = !!page.url;
+  $("#hint").hidden = hasPage || !!page.error;
+  $("#pageError").hidden = !page.error;
+  $("#pageError").textContent = page.error || "";
+  $("#back").disabled = !page.canGoBack;
+  $("#fwd").disabled = !page.canGoForward;
+  const reload = $("#reload");
+  reload.disabled = !hasPage;
+  reload.textContent = page.loading ? "✕" : "⟳";
+  reload.title = page.loading ? "Stop" : "Reload";
+  reload.setAttribute("aria-label", reload.title);
+  if (hasPage && document.activeElement !== $("#addr")) $("#addr").value = page.url;
+  placeView();
+}
+
+// ---------- Browse: keep the page view exactly over #pageArea ----------
+// The page view is a native layer on top of this screen, so it must be hidden whenever
+// something of ours (another tab, an error, the Settings dialog) needs that space.
+let placeQueued = false;
+let lastPlace = "";
+function placeView() {
+  if (placeQueued) return; // at most one update per frame, however many resize events arrive
+  placeQueued = true;
+  requestAnimationFrame(() => {
+    placeQueued = false;
+    const visible = mode === "browse" && !!page.url && !page.error && !$("#settings").open;
+    const r = $("#pageArea").getBoundingClientRect();
+    // 1px inset keeps the box's border visible around the page.
+    const rect = { x: r.x + 1, y: r.y + 1, width: r.width - 2, height: r.height - 2 };
+    const key = visible ? JSON.stringify(rect) : "hidden";
+    if (key === lastPlace) return;
+    lastPlace = key;
+    if (visible) kuha.browse.setBounds(rect);
+    kuha.browse.setVisible(visible);
+  });
+}
+new ResizeObserver(placeView).observe($("#pageArea"));
+
+// ---------- Browse: found videos ----------
+kuha.browse.onFound((list) => {
+  finds = list;
+  const pick = $("#foundPick");
+  const previous = pick.value;
+  pick.replaceChildren(...list.map((f) => new Option(f.label, f.id)));
+  if (!list.length) userPicked = false;
+  // Keep the user's own choice; otherwise show the first one (yt-dlp's result when there is one).
+  if (userPicked && list.some((f) => f.id === previous)) pick.value = previous;
+  $("#foundLabel").textContent = list.length > 1 ? `${list.length} videos found:` : "Video found:";
+  $("#found").hidden = list.length === 0;
+  placeView(); // the bar appearing or going changes the page area's size
+});
+$("#foundPick").addEventListener("change", () => (userPicked = true));
+
+$("#dlFound").addEventListener("click", () => {
+  const f = finds.find((x) => x.id === $("#foundPick").value);
+  if (!f) return;
+  startJob(card(f.label, { title: f.label }), () => kuha.downloadFound({ id: f.id, format, quality }));
+});
+
+// ---------- Batch ----------
+function updateButton() {
+  const n = parseLinks($("#links").value).length;
+  $("#go").textContent = n > 1 ? `Download ${n} links` : "Download";
+  $("#go").disabled = n === 0;
 }
 $("#links").addEventListener("input", updateButton);
 
-// ---------- Single mode: live preview ----------
-let previewTimer;
-let previewSeq = 0;
-
-function setStatus(text, isError) {
-  const el = $("#pstatus");
-  el.hidden = !text;
-  el.textContent = text || "";
-  el.classList.toggle("err", !!isError);
-}
-
-async function loadPreview() {
-  const url = $("#link").value.trim();
-  singleInfo = null;
-  $("#preview").hidden = true;
-  updateButton();
-  if (!url) return setStatus("");
-  if (!isUrl(url)) return setStatus("That doesn't look like a link.", true);
-
-  const seq = ++previewSeq;
-  setStatus("Loading preview...");
-  try {
-    const info = await kuha.getInfo(url);
-    if (seq !== previewSeq) return; // a newer link was pasted meanwhile
-    singleInfo = { ...info, url };
-    const p = $("#preview");
-    p.querySelector("img").src = info.thumbnail || "";
-    p.querySelector(".ptitle").textContent = info.title || url;
-    p.querySelector(".pmeta").textContent = [info.site, info.uploader].filter(Boolean).join(" · ");
-    const dur = p.querySelector(".dur");
-    dur.textContent = fmtTime(info.duration);
-    dur.hidden = !info.duration;
-    p.hidden = false;
-    setStatus("");
-  } catch (e) {
-    if (seq === previewSeq) setStatus(e.message, true);
-  }
-  updateButton();
-}
-
-$("#link").addEventListener("input", () => {
-  clearTimeout(previewTimer);
-  previewTimer = setTimeout(loadPreview, 500);
-});
-$("#link").addEventListener("paste", () => {
-  clearTimeout(previewTimer);
-  setTimeout(loadPreview, 0);
-});
-$("#link").addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && singleInfo) $("#go").click();
-});
-$("#paste").addEventListener("click", async () => {
-  try {
-    $("#link").value = (await navigator.clipboard.readText()).trim();
-    loadPreview();
-  } catch {
-    $("#link").focus();
-  }
-});
-
-// ---------- Download ----------
 $("#go").addEventListener("click", async () => {
-  const quality = $("#quality").value;
-  if (mode === "single") {
-    if (!singleInfo) return;
-    await startOne(singleInfo.url, quality, singleInfo);
-    $("#link").value = "";
-    singleInfo = null;
-    $("#preview").hidden = true;
-  } else {
-    // The main process queues them and runs at most 3 at once.
-    for (const url of parseLinks($("#links").value)) await startOne(url, quality);
-    $("#links").value = "";
+  // The main process queues them and runs at most 3 at once.
+  for (const url of parseLinks($("#links").value)) {
+    const li = card(url);
+    if (await startJob(li, () => kuha.download({ url, format, quality }))) fillInfo(li, url);
   }
+  $("#links").value = "";
   updateButton();
 });
 
-async function startOne(url, quality, known) {
-  const li = card(url, known);
+// ---------- Downloads list ----------
+async function startJob(li, start) {
   try {
-    const id = await kuha.download({ url, format, quality });
+    const id = await start();
     li.dataset.id = id;
     cards.set(id, li);
+    running.add(id);
+    showCount();
     li.querySelector(".cancel").onclick = () => kuha.cancel(id);
-    if (!known) fillInfo(li, url); // batch: fetch title/thumbnail alongside the download
+    return true;
   } catch (e) {
     fail(li, e.message);
     if (/Choose another one/.test(e.message)) chooseFolder();
+    return false;
   }
 }
 
+function showCount() {
+  $("#dlCount").textContent = running.size || "";
+}
+
 function card(url, info) {
-  $("#listTitle").hidden = false;
+  $("#noDownloads").hidden = true;
   const li = document.createElement("li");
   li.className = "item";
   li.dataset.fmt = format.toUpperCase();
@@ -175,6 +213,7 @@ function card(url, info) {
   return li;
 }
 
+// Batch: fetch the title and thumbnail alongside the download.
 async function fillInfo(li, url) {
   try {
     const info = await kuha.getInfo(url);
@@ -193,6 +232,7 @@ function fail(li, msg) {
 }
 
 kuha.onProgress((j) => {
+  if (["done", "error", "cancelled"].includes(j.status) && running.delete(j.id)) showCount();
   const li = cards.get(j.id);
   if (!li) return;
   const meta = li.querySelector(".meta");
@@ -232,17 +272,19 @@ $("#openSettings").addEventListener("click", async () => {
   $("#defQuality").value = s.quality;
   $("#updateStatus").textContent = "";
   $("#settings").showModal();
+  placeView(); // the page view would cover the dialog
   const v = await kuha.getVersions();
   $("#vApp").textContent = v.app;
   $("#vYtdlp").textContent = v.ytdlp || "missing";
 });
+$("#settings").addEventListener("close", placeView);
 $("#defFormat").addEventListener("change", () => {
   setFormat($("#defFormat").value);
   kuha.setSettings({ format });
 });
 $("#defQuality").addEventListener("change", () => {
-  $("#quality").value = $("#defQuality").value;
-  kuha.setSettings({ quality: $("#defQuality").value });
+  setQuality($("#defQuality").value);
+  kuha.setSettings({ quality });
 });
 $("#updateYtdlp").addEventListener("click", async () => {
   $("#updateStatus").textContent = "Checking...";

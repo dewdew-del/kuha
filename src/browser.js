@@ -100,7 +100,7 @@ function createBrowser({ win, getInfo, shouldBlock, onState, onFound }) {
     if (lookupAbort) lookupAbort.abort(); // a lookup for the old page is wasted work
     lookupAbort = null;
     const lookupUrl = pageUrl;
-    if (!isWeb(lookupUrl) || new URL(lookupUrl).hostname === "duckduckgo.com") return;
+    if (!isWeb(lookupUrl) || new URL(lookupUrl).hostname === "www.google.com") return;
     lookupTimer = setTimeout(() => {
       lookupAbort = new AbortController();
       getInfo(lookupUrl, lookupAbort.signal).then(
@@ -170,6 +170,12 @@ function createBrowser({ win, getInfo, shouldBlock, onState, onFound }) {
       view.setBounds({ x: Math.round(n[0]), y: Math.round(n[1]), width: Math.max(0, Math.round(n[2])), height: Math.max(0, Math.round(n[3])) });
     },
     setVisible: (visible) => view.setVisible(!!visible),
+    // Forget everything the sites stored: logins, cookies, cache, site data.
+    async clearData() {
+      await ses.clearStorageData();
+      await ses.clearCache();
+      await ses.clearAuthCache();
+    },
     // Everything the downloader needs for a find. The screen only ever holds the id.
     getFind(id) {
       const f = finds.get(id);

@@ -13,10 +13,10 @@ test("toUrl: bare sites get https://", () => {
   assert.equal(toUrl("sub.site.co.uk:8080/a"), "https://sub.site.co.uk:8080/a");
 });
 
-test("toUrl: anything else is a DuckDuckGo search", () => {
-  assert.equal(toUrl("cute cats"), "https://duckduckgo.com/?q=cute%20cats");
-  assert.equal(toUrl("what is node.js"), "https://duckduckgo.com/?q=what%20is%20node.js");
-  assert.equal(toUrl("cats"), "https://duckduckgo.com/?q=cats");
+test("toUrl: anything else is a Google search", () => {
+  assert.equal(toUrl("cute cats"), "https://www.google.com/search?q=cute%20cats");
+  assert.equal(toUrl("what is node.js"), "https://www.google.com/search?q=what%20is%20node.js");
+  assert.equal(toUrl("cats"), "https://www.google.com/search?q=cats");
 });
 
 test("toUrl: other schemes and empty input are refused", () => {

@@ -143,6 +143,7 @@ function registerHandlers() {
   handle("browseStop", () => browser.stop());
   handle("browseSetBounds", (rect) => browser.setBounds(rect));
   handle("browseSetVisible", (visible) => browser.setVisible(visible));
+  handle("browseClearData", () => browser.clearData());
 }
 
 app.whenReady().then(() => {

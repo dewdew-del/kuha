@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld("kuha", {
     stop: () => call("browseStop"),
     setBounds: (rect) => call("browseSetBounds", rect),
     setVisible: (visible) => call("browseSetVisible", visible),
+    clearData: () => call("browseClearData"),
     onState: on("browseState"),
     onFound: on("found"),
   },

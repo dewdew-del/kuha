@@ -6,7 +6,7 @@ function toUrl(text) {
   // Any other scheme (file:, javascript:, data:...). The (?!\d) keeps "site.com:8080" from counting.
   if (/^[a-z][a-z0-9+.-]*:(?!\d)/i.test(t)) return null;
   if (/^[\w-]+(\.[\w-]+)+(:\d+)?(\/\S*)?$/.test(t)) return `https://${t}`;
-  return `https://duckduckgo.com/?q=${encodeURIComponent(t)}`;
+  return `https://www.google.com/search?q=${encodeURIComponent(t)}`;
 }
 
 // True when two page addresses differ at most in the #fragment (anchors, player time marks),

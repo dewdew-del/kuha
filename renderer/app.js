@@ -448,4 +448,13 @@ $("#defQuality").addEventListener("change", () => {
   setQuality($("#defQuality").value);
   kuha.setSettings({ quality });
 });
-$("#blockAds").addEventListener("change", () => kuha.setSettings({ blockAds: $("#blockAds").checked }));
+$("#clearData").addEventListener("click", async () => {
+  const hint = $("#clearHint");
+  try {
+    await kuha.browse.clearData();
+    hint.textContent = "Cleared. Reload the page to see it signed out.";
+  } catch (err) {
+    hint.textContent = "Couldn't clear: " + err.message;
+  }
+});
+$("#blockAds").addEventListener("change",() => kuha.setSettings({ blockAds: $("#blockAds").checked }));

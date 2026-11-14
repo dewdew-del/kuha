@@ -151,23 +151,8 @@ $("#fwd").addEventListener("click", () => kuha.browse.forward());
 $("#reload").addEventListener("click", () => (page.loading ? kuha.browse.stop() : kuha.browse.reload()));
 $("#retry").addEventListener("click", () => kuha.browse.reload());
 
-// Paste: fill the box, and open it straight away when what was copied is a single link.
-$("#paste").addEventListener("click", async () => {
-  let text = "";
-  try {
-    text = (await navigator.clipboard.readText()).trim();
-  } catch {
-    addrError("Couldn't read the clipboard. Click the box and press Ctrl+V instead.");
-    $("#addr").focus();
-    return;
-  }
-  if (!text) return addrError("The clipboard is empty. Copy a video link first.");
-  $("#addr").value = text;
-  syncGo();
-  const links = parseLinks(text);
-  if (links.length === 1 && links[0] === text) openAddress();
-  else $("#addr").focus();
-});
+// Pasting into the box searches straight away (the box has updated by the next tick).
+$("#addr").addEventListener("paste", () => setTimeout(() => { syncGo(); openAddress(); }, 0));
 
 kuha.browse.onState((s) => {
   page = s;

@@ -22,7 +22,7 @@ Built with Electron, powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [
 - Plain-English error messages (private video, copy-protected video, no sound for MP3, site not readable)
 
 ## Browse mode
-1. Paste a link or type a site in the box at the top, then press **Go**.
+1. Paste a link or type a site in the box at the top, then press **Search** (pasting a link searches straight away).
 2. Press play on the video.
 3. A **Video found** bar appears at the bottom. Pick MP4 or MP3 and click **Download**.
 

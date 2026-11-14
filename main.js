@@ -84,7 +84,7 @@ function registerHandlers() {
   // The screen passes only the find's id; the address and headers are looked up here.
   handle("downloadFound", ({ id, format, quality }) => {
     const f = browser.getFind(String(id));
-    if (!f) throw new Error("That video is no longer on this page.");
+    if (!f) throw new Error("That video is no longer on this page. Play it again so Kuha can find it.");
     return startJob({ url: f.url, referer: f.referer, userAgent: f.userAgent, title: f.title, format, quality });
   });
 
@@ -133,7 +133,7 @@ function registerHandlers() {
 
   handle("browseGo", (text) => {
     const url = toUrl(String(text));
-    if (!url) throw new Error("That address can't be opened.");
+    if (!url) throw new Error("That address can't be opened. Use a site like example.com or a link that starts with http:// or https://.");
     browser.go(url);
   });
   handle("browseBack", () => browser.back());

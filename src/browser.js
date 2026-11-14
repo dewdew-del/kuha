@@ -8,6 +8,9 @@ const isWeb = (url) => /^https?:\/\//i.test(String(url));
 const LOOKUP_DELAY_MS = 800;
 const LOAD_ERROR = "Couldn't open this page. Check the address and your internet.";
 
+// Page parts that are almost always ads, hidden on every page while the ad blocker is on.
+const HIDE_ADS = `ins.adsbygoogle, .adsbygoogle, [id^="google_ads"], [id^="div-gpt-ad"], [id*="taboola"], [class*="taboola"], [aria-label="Advertisement"], iframe[src*="doubleclick.net"], iframe[src*="googlesyndication"], iframe[src*="popunder"] { display: none !important; }`;
+
 function createBrowser({ win, getInfo, shouldBlock, onState, onFound }) {
   const ses = session.fromPartition("persist:browse");
   // Sites treat an "Electron" browser oddly; the same string is sent with downloads.
@@ -52,9 +55,10 @@ function createBrowser({ win, getInfo, shouldBlock, onState, onFound }) {
     onFound(list);
   }
 
-  const isAd = (url) => {
+  // type: "mainFrame" for a page address, else the kind of thing being loaded (script, image, ping...).
+  const isAd = (url, type = "mainFrame") => {
     try {
-      return shouldBlock(new URL(url).hostname);
+      return shouldBlock(new URL(url).hostname, url, type);
     } catch {
       return false;
     }
@@ -65,7 +69,7 @@ function createBrowser({ win, getInfo, shouldBlock, onState, onFound }) {
   // page; a page trying to send the user to an ad site is stopped in will-navigate below.
   // Runs for every request, so it is one name lookup and nothing else.
   ses.webRequest.onBeforeRequest((d, done) => {
-    done({ cancel: d.resourceType !== "mainFrame" && isWeb(d.url) && isAd(d.url) });
+    done({ cancel: d.resourceType !== "mainFrame" && (d.resourceType === "ping" || isWeb(d.url)) && isAd(d.url, d.resourceType) });
   });
 
   // Header checks only: this runs for every response the page gets, so it must stay cheap.
@@ -111,6 +115,9 @@ function createBrowser({ win, getInfo, shouldBlock, onState, onFound }) {
   }
 
   wc.on("did-navigate", () => onPageChange(false));
+  wc.on("dom-ready", () => {
+    if (shouldBlock("", "", "css")) wc.insertCSS(HIDE_ADS).catch(() => {});
+  });
   wc.on("did-navigate-in-page", (_e, _url, isMainFrame) => {
     if (isMainFrame) onPageChange(true);
   });

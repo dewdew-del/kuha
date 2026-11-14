@@ -18,7 +18,25 @@ function parseHosts(text) {
 // Endings that ad networks rotate through with random-looking names (a new one every week), so
 // no list keeps up. Almost no real site lives on them.
 // shortcut: a real site on one of these is blocked as a sub-resource; remove its ending here.
-const THROWAWAY = new Set(["cfd", "cyou", "rest", "sbs", "icu", "buzz"]);
+const THROWAWAY = new Set(["cfd", "cyou", "rest", "sbs", "icu", "buzz", "monster", "quest", "bond"]);
+
+// Whole name parts that mean "ad network": pop-under, banner and video-ad sellers, native-ad widgets.
+const AD_LABELS = new Set([
+  "ads", "adserver", "adservice", "adsystem", "adx", "banners", "popads", "popcash", "popunder", "doubleclick",
+  "exoclick", "juicyads", "adsterra", "propellerads", "clickadu", "hilltopads", "trafficjunky", "trafficfactory",
+  "taboola", "outbrain", "revcontent", "mgid", "adnxs", "pubmatic", "criteo", "onclickads", "adcash", "adskeeper",
+  "googlesyndication", "googleadservices", "smartadserver", "adform", "yllix", "richpush", "pushails",
+]);
+
+// Ad scripts and frames give themselves away in their address.
+const AD_PATH = /\/(?:adserver|ad-server|adframe|popunder|pop-under|prebid|pagead|show_ads|adsbygoogle|ads\.js|ad\.js|popads?|banner-ads?)\b/i;
+function isAdPath(url) {
+  try {
+    return AD_PATH.test(new URL(url).pathname);
+  } catch {
+    return false;
+  }
+}
 
 // Ad hosts seen on real pages that the downloaded list doesn't have yet.
 const EXTRA = new Set(["alfionaupleap.com"]);
@@ -28,6 +46,7 @@ const EXTRA = new Set(["alfionaupleap.com"]);
 function isBlocked(hostname, list) {
   let name = String(hostname ?? "").toLowerCase().replace(/\.$/, "");
   if (THROWAWAY.has(name.slice(name.lastIndexOf(".") + 1))) return true;
+  if (name.split(".").some((l) => AD_LABELS.has(l))) return true;
   while (name.includes(".")) {
     if (list.has(name) || EXTRA.has(name)) return true;
     name = name.slice(name.indexOf(".") + 1);
@@ -44,4 +63,4 @@ function loadList(file) {
   }
 }
 
-module.exports = { parseHosts, isBlocked, loadList };
+module.exports = { parseHosts, isBlocked, isAdPath, loadList };

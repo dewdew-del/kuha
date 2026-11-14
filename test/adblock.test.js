@@ -38,7 +38,7 @@ test("isBlocked never matches on a bare top-level name or junk input", () => {
   assert.equal(isBlocked("anything.net", list), false);
   assert.equal(isBlocked("", list), false);
   assert.equal(isBlocked(undefined, list), false);
-  assert.equal(isBlocked("ads.example.com", new Set()), false);
+  assert.equal(isBlocked("x.example.com", new Set()), false);
 });
 
 test("isBlocked also blocks throwaway ad-network endings, but not normal sites", () => {
@@ -53,4 +53,27 @@ test("isBlocked also blocks throwaway ad-network endings, but not normal sites",
 
 test("isBlocked knows extra ad hosts seen on real pages", () => {
   assert.equal(isBlocked("nd.alfionaupleap.com", new Set()), true);
+});
+
+const { isAdPath } = require("../src/adblock");
+
+test("isBlocked catches ad-network names by their parts, not only exact list entries", () => {
+  const empty = new Set();
+  assert.equal(isBlocked("ads.somesite.com", empty), true);
+  assert.equal(isBlocked("cdn.adserver.example.net", empty), true);
+  assert.equal(isBlocked("static.exoclick.com", empty), true);
+  assert.equal(isBlocked("x.popads.net", empty), true);
+  assert.equal(isBlocked("cdn.shopify.com", empty), false);
+  assert.equal(isBlocked("leads.example.com", empty), false);
+  assert.equal(isBlocked("adobe.com", empty), false);
+  assert.equal(isBlocked("a.monster", empty), true);
+});
+
+test("isAdPath spots ad scripts and frames by their address", () => {
+  assert.equal(isAdPath("https://site.com/js/popunder.js"), true);
+  assert.equal(isAdPath("https://site.com/pagead/js/adsbygoogle.js"), true);
+  assert.equal(isAdPath("https://site.com/show_ads.js"), true);
+  assert.equal(isAdPath("https://site.com/video/123.mp4"), false);
+  assert.equal(isAdPath("https://site.com/headphones/spread.js"), false);
+  assert.equal(isAdPath("not a url"), false);
 });

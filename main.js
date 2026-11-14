@@ -7,7 +7,7 @@ const settings = require("./src/settings");
 const { createDownloader } = require("./src/downloader");
 const { createBrowser } = require("./src/browser");
 const { toUrl } = require("./src/address");
-const { loadList, isBlocked } = require("./src/adblock");
+const { loadList, isBlocked, isAdPath } = require("./src/adblock");
 
 let adList = new Set();
 // Kept in memory: the page view asks on every request, and reading settings.json each time would lag.
@@ -170,7 +170,9 @@ app.whenReady().then(() => {
   browser = createBrowser({
     win,
     getInfo: (url, signal) => downloader.getInfo(url, signal),
-    shouldBlock: (hostname) => blockAds && isBlocked(hostname, adList),
+    // type "css" only asks whether blocking is on; "ping" tracking beacons are dropped; paths are checked for what a page loads, never for pages.
+    shouldBlock: (hostname, url, type) =>
+      blockAds && (type === "css" || type === "ping" || isBlocked(hostname, adList) || (type !== "mainFrame" && isAdPath(url))),
     onState: (s) => sendToWindow("kuha:browseState", s),
     onFound: (list) => sendToWindow("kuha:found", list),
   });

@@ -40,3 +40,17 @@ test("isBlocked never matches on a bare top-level name or junk input", () => {
   assert.equal(isBlocked(undefined, list), false);
   assert.equal(isBlocked("ads.example.com", new Set()), false);
 });
+
+test("isBlocked also blocks throwaway ad-network endings, but not normal sites", () => {
+  const empty = new Set();
+  assert.equal(isBlocked("tort.excuditcycle.cfd", empty), true);
+  assert.equal(isBlocked("vinnyvower.cfd", empty), true);
+  assert.equal(isBlocked("cuppenbedsore.cyou", empty), true);
+  assert.equal(isBlocked("cursive.whorishcropped.rest", empty), true);
+  assert.equal(isBlocked("example.com", empty), false);
+  assert.equal(isBlocked("9anime.or.at", empty), false);
+});
+
+test("isBlocked knows extra ad hosts seen on real pages", () => {
+  assert.equal(isBlocked("nd.alfionaupleap.com", new Set()), true);
+});

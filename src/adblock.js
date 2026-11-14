@@ -15,12 +15,21 @@ function parseHosts(text) {
   return names;
 }
 
+// Endings that ad networks rotate through with random-looking names (a new one every week), so
+// no list keeps up. Almost no real site lives on them.
+// shortcut: a real site on one of these is blocked as a sub-resource; remove its ending here.
+const THROWAWAY = new Set(["cfd", "cyou", "rest", "sbs", "icu", "buzz"]);
+
+// Ad hosts seen on real pages that the downloaded list doesn't have yet.
+const EXTRA = new Set(["alfionaupleap.com"]);
+
 // True when the name, or a parent of it, is on the list. Stops before the last label,
 // so a stray "net" on a list can never block every .net site.
 function isBlocked(hostname, list) {
   let name = String(hostname ?? "").toLowerCase().replace(/\.$/, "");
+  if (THROWAWAY.has(name.slice(name.lastIndexOf(".") + 1))) return true;
   while (name.includes(".")) {
-    if (list.has(name)) return true;
+    if (list.has(name) || EXTRA.has(name)) return true;
     name = name.slice(name.indexOf(".") + 1);
   }
   return false;

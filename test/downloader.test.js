@@ -208,3 +208,31 @@ test("start passes referer, user agent and title to yt-dlp, and omits them by de
   assert.ok(a[a.indexOf("-o") + 1].includes("T ["));
   assert.ok(!b.includes("--referer"));
 });
+
+test("a lookup whose signal is aborted while it waits in the queue never spawns", async () => {
+  const { d, spawnFn } = setup();
+  [1, 2, 3].forEach((n) => d.getInfo(`https://x/${n}`).catch(() => {})); // fill the 3 slots
+  const ac = new AbortController();
+  const stale = d.getInfo("https://x/stale", ac.signal);
+  ac.abort();
+  const fresh = d.getInfo("https://x/fresh");
+  spawnFn.children[0].exit(1); // frees a slot
+  await assert.rejects(stale, /Cancelled/);
+  assert.equal(spawnFn.children.length, 4);
+  assert.equal(spawnFn.children[3].args.at(-1), "https://x/fresh");
+  spawnFn.children[3].out(JSON.stringify({ title: "f" }));
+  spawnFn.children[3].exit(0);
+  assert.equal((await fresh).title, "f");
+});
+
+test("aborting a running lookup kills its process, and an already-aborted signal never spawns", async () => {
+  const { d, spawnFn, kills } = setup();
+  const ac = new AbortController();
+  const p = d.getInfo("https://x/v", ac.signal);
+  ac.abort();
+  assert.deepEqual(kills, [spawnFn.children[0].pid]);
+  spawnFn.children[0].exit(1);
+  await assert.rejects(p);
+  await assert.rejects(d.getInfo("https://x/w", ac.signal), /Cancelled/);
+  assert.equal(spawnFn.children.length, 1);
+});

@@ -26,28 +26,36 @@ function createDownloader({ ytdlp, ffmpeg, getSaveDir, spawnFn = childProcess.sp
   // Preview lookups share their own limit, so a 30-link batch doesn't start 30 yt-dlp processes.
   let infoRunning = 0;
   const infoQueue = [];
-  function getInfo(url) {
+  // An optional AbortSignal drops a lookup nobody wants any more (the page view moved on):
+  // a queued one never starts, a running one is killed.
+  function getInfo(url, signal) {
     return new Promise((resolve, reject) => {
-      infoQueue.push({ url, resolve, reject });
+      if (signal && signal.aborted) return reject(new Error("Cancelled"));
+      infoQueue.push({ url, resolve, reject, signal });
       pumpInfo();
     });
   }
   function pumpInfo() {
     while (infoRunning < concurrency && infoQueue.length) {
-      const { url, resolve, reject } = infoQueue.shift();
+      const { url, resolve, reject, signal } = infoQueue.shift();
+      if (signal && signal.aborted) {
+        reject(new Error("Cancelled"));
+        continue;
+      }
       infoRunning++;
       const done = (fn) => (v) => {
         infoRunning--;
         fn(v);
         pumpInfo();
       };
-      lookup(url).then(done(resolve), done(reject));
+      lookup(url, signal).then(done(resolve), done(reject));
     }
   }
 
-  function lookup(url) {
+  function lookup(url, signal) {
     return new Promise((resolve, reject) => {
       const p = spawnFn(ytdlp, ["-J", "--no-playlist", "--no-warnings", url], { windowsHide: true });
+      if (signal) signal.addEventListener("abort", () => killFn(p.pid), { once: true });
       let out = "";
       let err = "";
       p.stdout.on("data", (d) => (out += d));

@@ -158,7 +158,7 @@ app.whenReady().then(() => {
   createWindow();
   browser = createBrowser({
     win,
-    getInfo: (url) => downloader.getInfo(url),
+    getInfo: (url, signal) => downloader.getInfo(url, signal),
     onState: (s) => sendToWindow("kuha:browseState", s),
     onFound: (list) => sendToWindow("kuha:found", list),
   });

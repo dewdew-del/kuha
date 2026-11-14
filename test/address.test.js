@@ -24,3 +24,14 @@ test("toUrl: other schemes and empty input are refused", () => {
     assert.equal(toUrl(t), null, String(t));
   }
 });
+
+const { samePage } = require("../src/address");
+
+test("samePage: only the #fragment (or nothing) changed", () => {
+  assert.equal(samePage("https://a.com/v?id=1#t=5", "https://a.com/v?id=1#t=9"), true);
+  assert.equal(samePage("https://a.com/v", "https://a.com/v"), true);
+  assert.equal(samePage("https://a.com/v?id=1", "https://a.com/v?id=2"), false);
+  assert.equal(samePage("https://a.com/v", "https://a.com/w"), false);
+  assert.equal(samePage("", "https://a.com/"), false);
+  assert.equal(samePage("not a url", "not a url"), true);
+});

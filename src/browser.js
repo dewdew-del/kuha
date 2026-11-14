@@ -2,6 +2,7 @@
 // Web pages here get no preload, so they can never reach window.kuha or anything of Kuha's.
 const { WebContentsView, session } = require("electron");
 const { classify, fromHeaders, createFinds, pageName } = require("./sniff");
+const { samePage } = require("./address");
 
 const isWeb = (url) => /^https?:\/\//i.test(String(url));
 const LOOKUP_DELAY_MS = 800;
@@ -28,6 +29,8 @@ function createBrowser({ win, getInfo, onState, onFound }) {
   let error = null;
   let mainFind = null; // a video opened as the page itself; its response arrives before the page change
   let lookupTimer = null;
+  let lookupAbort = null; // cancels the yt-dlp lookup of a page the user has left
+  let pageUrl = ""; // the address the current finds belong to
   let lastFound = "[]";
 
   const sendState = () =>
@@ -61,7 +64,11 @@ function createBrowser({ win, getInfo, onState, onFound }) {
     if (kind && finds.add({ kind, url: d.url, sizeBytes: contentLength })) sendFound();
   });
 
-  function onPageChange() {
+  function onPageChange(inPage) {
+    // A #fragment change (anchor, player time mark) is still the same page: keep its finds
+    // and don't start another yt-dlp lookup.
+    if (inPage && samePage(wc.getURL(), pageUrl)) return sendState();
+    pageUrl = wc.getURL();
     finds.clear();
     if (mainFind) finds.add(mainFind);
     mainFind = null;
@@ -70,13 +77,16 @@ function createBrowser({ win, getInfo, onState, onFound }) {
 
     // Ask yt-dlp about the page once it settles; fast clicking only triggers one lookup.
     clearTimeout(lookupTimer);
-    const pageUrl = wc.getURL();
-    if (!isWeb(pageUrl) || new URL(pageUrl).hostname === "duckduckgo.com") return;
+    if (lookupAbort) lookupAbort.abort(); // a lookup for the old page is wasted work
+    lookupAbort = null;
+    const lookupUrl = pageUrl;
+    if (!isWeb(lookupUrl) || new URL(lookupUrl).hostname === "duckduckgo.com") return;
     lookupTimer = setTimeout(() => {
-      getInfo(pageUrl).then(
+      lookupAbort = new AbortController();
+      getInfo(lookupUrl, lookupAbort.signal).then(
         (info) => {
-          if (wc.isDestroyed() || wc.getURL() !== pageUrl) return; // the user has moved on
-          finds.add({ kind: "site", url: pageUrl, title: info.title });
+          if (wc.isDestroyed() || wc.getURL() !== lookupUrl) return; // the user has moved on
+          finds.add({ kind: "site", url: lookupUrl, title: info.title });
           sendFound();
         },
         () => {} // yt-dlp doesn't know this page; the response watcher still works
@@ -84,9 +94,9 @@ function createBrowser({ win, getInfo, onState, onFound }) {
     }, LOOKUP_DELAY_MS);
   }
 
-  wc.on("did-navigate", onPageChange);
+  wc.on("did-navigate", () => onPageChange(false));
   wc.on("did-navigate-in-page", (_e, _url, isMainFrame) => {
-    if (isMainFrame) onPageChange();
+    if (isMainFrame) onPageChange(true);
   });
   wc.on("did-start-loading", () => {
     error = null;

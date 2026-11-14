@@ -9,4 +9,11 @@ function toUrl(text) {
   return `https://duckduckgo.com/?q=${encodeURIComponent(t)}`;
 }
 
-module.exports = { toUrl };
+// True when two page addresses differ at most in the #fragment (anchors, player time marks),
+// so it is still the same page and its found videos stay.
+function samePage(a, b) {
+  const bare = (u) => String(u).split("#")[0];
+  return bare(a) === bare(b);
+}
+
+module.exports = { toUrl, samePage };

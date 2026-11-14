@@ -1,4 +1,5 @@
 // Kuha window logic. Talks to the back end only through window.kuha (preload.js).
+// Pure helpers (parseLinks, matchShortcut, fmtTime, hostOf) come from links.js and ui.js.
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
 let format = "mp4";
@@ -9,9 +10,11 @@ let finds = []; // videos found on the current page: {id, kind, label, sizeBytes
 let userPicked = false; // the user chose a find by hand, so don't jump back to the first
 const cards = new Map(); // job id -> card element
 const running = new Set(); // ids of jobs that haven't finished
+const calm = matchMedia("(prefers-reduced-motion: reduce)"); // script-driven motion honours this too
 
 // ---------- Start-up ----------
 (async () => {
+  $("#addr").focus(); // ready to paste
   const s = await kuha.getSettings();
   setFormat(s.format);
   setQuality(s.quality);
@@ -25,18 +28,45 @@ function showWarn(text) {
   $("#warn").textContent = text;
 }
 
+// ---------- Short messages (outside the page area, so the page view can't cover them) ----------
+let toastTimer;
+function toast(text, { error = false, view = false } = {}) {
+  $("#toastText").textContent = text;
+  $("#toast").classList.toggle("bad", error);
+  $("#toastView").hidden = !view;
+  $("#toast").hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => ($("#toast").hidden = true), error ? 7000 : 4000);
+}
+$("#toastView").addEventListener("click", () => {
+  selectTab("downloads");
+  $("#toast").hidden = true;
+});
+
 // ---------- Tabs ----------
-$$(".tabs button").forEach((b) =>
-  b.addEventListener("click", () => {
-    mode = b.dataset.tab;
-    $$(".tabs button").forEach((x) => {
-      x.classList.toggle("on", x === b);
-      x.setAttribute("aria-selected", String(x === b));
-    });
-    $$(".pane").forEach((p) => (p.hidden = p.id !== mode));
-    placeView();
-  })
-);
+const tabs = [...$$(".tabs button")];
+function selectTab(name) {
+  mode = name;
+  tabs.forEach((x) => {
+    const on = x.dataset.tab === name;
+    x.classList.toggle("on", on);
+    x.setAttribute("aria-selected", String(on));
+    x.tabIndex = on ? 0 : -1; // one tab stop; arrow keys move between tabs
+  });
+  $$(".pane").forEach((p) => (p.hidden = p.id !== name));
+  placeView();
+}
+tabs.forEach((b, i) => {
+  b.addEventListener("click", () => selectTab(b.dataset.tab));
+  b.addEventListener("keydown", (e) => {
+    const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+    if (to === undefined) return;
+    e.preventDefault();
+    const next = tabs[(to + tabs.length) % tabs.length];
+    selectTab(next.dataset.tab);
+    next.focus();
+  });
+});
 
 // ---------- Format / quality (one value each, shown in Browse and Batch, remembered as the defaults) ----------
 function setFormat(f) {
@@ -72,28 +102,56 @@ async function chooseFolder() {
 }
 
 // ---------- Browse: address bar ----------
+function addrError(text) {
+  $("#addrError").textContent = text || "";
+  $("#addrError").hidden = !text;
+}
+function syncGo() {
+  $("#goAddr").disabled = !$("#addr").value.trim();
+}
 async function openAddress() {
   const text = $("#addr").value.trim();
   if (!text) return;
   // A refused address gets its own line; the page that is already open stays as it is.
-  const err = $("#addrError");
-  err.hidden = true;
+  addrError("");
   try {
     await kuha.browse.go(text);
     $("#addr").blur(); // so the box can show the real address once the page loads
   } catch (e) {
-    err.textContent = e.message;
-    err.hidden = false;
+    addrError(e.message);
   }
 }
 $("#goAddr").addEventListener("click", openAddress);
 $("#addr").addEventListener("keydown", (e) => {
   if (e.key === "Enter") openAddress();
 });
+$("#addr").addEventListener("input", () => {
+  syncGo();
+  addrError("");
+});
 $("#addr").addEventListener("focus", () => $("#addr").select());
 $("#back").addEventListener("click", () => kuha.browse.back());
 $("#fwd").addEventListener("click", () => kuha.browse.forward());
 $("#reload").addEventListener("click", () => (page.loading ? kuha.browse.stop() : kuha.browse.reload()));
+$("#retry").addEventListener("click", () => kuha.browse.reload());
+
+// Paste: fill the box, and open it straight away when what was copied is a single link.
+$("#paste").addEventListener("click", async () => {
+  let text = "";
+  try {
+    text = (await navigator.clipboard.readText()).trim();
+  } catch {
+    addrError("Couldn't read the clipboard. Click the box and press Ctrl+V instead.");
+    $("#addr").focus();
+    return;
+  }
+  if (!text) return addrError("The clipboard is empty. Copy a video link first.");
+  $("#addr").value = text;
+  syncGo();
+  const links = parseLinks(text);
+  if (links.length === 1 && links[0] === text) openAddress();
+  else $("#addr").focus();
+});
 
 kuha.browse.onState((s) => {
   page = s;
@@ -103,18 +161,57 @@ kuha.browse.onState((s) => {
 function renderPage() {
   const hasPage = !!page.url;
   $("#hint").hidden = hasPage || !!page.error;
-  $("#pageError").hidden = !page.error;
+  $("#pageErrorBox").hidden = !page.error;
   $("#pageError").textContent = page.error || "";
   $("#back").disabled = !page.canGoBack;
   $("#fwd").disabled = !page.canGoForward;
   const reload = $("#reload");
   reload.disabled = !hasPage;
   reload.textContent = page.loading ? "✕" : "⟳";
-  reload.title = page.loading ? "Stop" : "Reload";
-  reload.setAttribute("aria-label", reload.title);
-  if (hasPage && document.activeElement !== $("#addr")) $("#addr").value = page.url;
+  reload.title = page.loading ? "Stop (Esc)" : "Reload (F5)";
+  reload.setAttribute("aria-label", page.loading ? "Stop loading" : "Reload");
+  $(".addrrow").classList.toggle("loading", page.loading && !page.error);
+  $("#pageArea").setAttribute("aria-busy", String(page.loading));
+  // chrome-error:// is Chromium's own failed-page address; the box keeps what the user typed.
+  if (/^https?:/i.test(page.url) && document.activeElement !== $("#addr")) {
+    $("#addr").value = page.url;
+    syncGo();
+  }
   placeView();
 }
+
+// ---------- Browse: keyboard shortcuts (the default menu is gone, so Kuha handles them) ----------
+// They work while Kuha's own screen has focus. A click inside the web page gives that page the
+// keyboard, and its key presses never reach this screen.
+document.addEventListener("keydown", (e) => {
+  if ($("#settings").open) return;
+  const act = matchShortcut(e);
+  if (!act) return;
+  if (act === "address") {
+    e.preventDefault();
+    selectTab("browse");
+    $("#addr").focus();
+  } else if (act === "reload") {
+    e.preventDefault(); // never lets Ctrl+R / F5 reload Kuha's own screen
+    if (mode === "browse" && page.url) kuha.browse.reload();
+  } else if (mode !== "browse") {
+    return;
+  } else if (act === "back" && page.canGoBack) {
+    e.preventDefault();
+    kuha.browse.back();
+  } else if (act === "forward" && page.canGoForward) {
+    e.preventDefault();
+    kuha.browse.forward();
+  } else if (act === "escape") {
+    if (page.loading) kuha.browse.stop();
+    else if (document.activeElement === $("#addr")) {
+      $("#addr").value = /^https?:/i.test(page.url) ? page.url : ""; // give the box its old address back
+      syncGo();
+      addrError("");
+      $("#addr").blur();
+    }
+  }
+});
 
 // ---------- Browse: keep the page view exactly over #pageArea ----------
 // The page view is a native layer on top of this screen, so it must be hidden whenever
@@ -154,31 +251,63 @@ kuha.browse.onFound((list) => {
 });
 $("#foundPick").addEventListener("change", () => (userPicked = true));
 
-$("#dlFound").addEventListener("click", () => {
+let addedTimer;
+$("#dlFound").addEventListener("click", async () => {
   const f = finds.find((x) => x.id === $("#foundPick").value);
   if (!f) return;
-  startJob(card(f.label, { title: f.label }), () => kuha.downloadFound({ id: f.id, format, quality }));
+  const err = await startJob(card(f.label, { title: f.label, site: hostOf(page.url) }), () =>
+    kuha.downloadFound({ id: f.id, format, quality })
+  );
+  if (err) return toast(err, { error: true });
+  // The tab doesn't switch (the page stays in view), so say clearly that it worked.
+  const btn = $("#dlFound");
+  btn.textContent = "Added ✓";
+  btn.disabled = true; // a double click would start it twice
+  clearTimeout(addedTimer);
+  addedTimer = setTimeout(() => {
+    btn.textContent = "Download";
+    btn.disabled = false;
+  }, 1200);
+  toast("Added to Downloads", { view: true });
 });
 
 // ---------- Batch ----------
 function updateButton() {
-  const n = parseLinks($("#links").value).length;
+  const text = $("#links").value;
+  const n = parseLinks(text).length;
   $("#go").textContent = n > 1 ? `Download ${n} links` : "Download";
   $("#go").disabled = n === 0;
+  const hint = $("#batchHint");
+  hint.classList.toggle("err", !n && !!text.trim());
+  hint.textContent = n
+    ? `${n} ${n === 1 ? "link" : "links"} ready.`
+    : text.trim()
+      ? "No links found. Each link must start with http:// or https://."
+      : "Paste links that start with http:// or https://.";
 }
 $("#links").addEventListener("input", updateButton);
 
 $("#go").addEventListener("click", async () => {
   // The main process queues them and runs at most 3 at once.
+  let started = 0;
+  let failed = 0;
   for (const url of parseLinks($("#links").value)) {
     const li = card(url);
-    if (await startJob(li, () => kuha.download({ url, format, quality }))) fillInfo(li, url);
+    if (await startJob(li, () => kuha.download({ url, format, quality }))) failed++;
+    else {
+      started++;
+      fillInfo(li, url);
+    }
   }
   $("#links").value = "";
   updateButton();
+  const added = `${started} ${started === 1 ? "download" : "downloads"} added`;
+  if (failed) toast(`${added}, ${failed} couldn't start. See Downloads.`, { error: true, view: true });
+  else toast(added, { view: true });
 });
 
 // ---------- Downloads list ----------
+// Resolves to null when the job started, or to the error message when it didn't.
 async function startJob(li, start) {
   try {
     const id = await start();
@@ -187,16 +316,30 @@ async function startJob(li, start) {
     running.add(id);
     showCount();
     li.querySelector(".cancel").onclick = () => kuha.cancel(id);
-    return true;
+    return null;
   } catch (e) {
     fail(li, e.message);
     if (/Choose another one/.test(e.message)) chooseFolder();
-    return false;
+    return e.message;
   }
 }
 
+// The badge on the Downloads tab: how many are running. It pops when one is added.
 function showCount() {
-  $("#dlCount").textContent = running.size || "";
+  const el = $("#dlCount");
+  const grew = running.size > Number(el.textContent || 0);
+  el.textContent = running.size || "";
+  $("#tab-downloads").setAttribute("aria-label", running.size ? `Downloads, ${running.size} running` : "Downloads");
+  if (grew && !calm.matches) el.animate([{ transform: "scale(1)" }, { transform: "scale(1.5)" }, { transform: "scale(1)" }], { duration: 300 });
+}
+
+function setTitle(li, text) {
+  const t = li.querySelector(".title");
+  t.textContent = text;
+  t.title = text; // the card clips long titles
+  li.dataset.name = text;
+  const cancel = li.querySelector(".cancel");
+  if (cancel) cancel.setAttribute("aria-label", `Cancel ${text}`);
 }
 
 function card(url, info) {
@@ -204,21 +347,29 @@ function card(url, info) {
   const li = document.createElement("li");
   li.className = "item";
   li.dataset.fmt = format.toUpperCase();
-  li.innerHTML = `<img alt="" /><div><div class="title"></div><div class="meta"></div><div class="bar"><div></div></div></div><div class="act"><button type="button" class="ghost small cancel">Cancel</button></div>`;
-  li.querySelector(".title").textContent = (info && info.title) || url;
-  if (info && info.thumbnail) li.querySelector("img").src = info.thumbnail;
+  // .thumb shows a placeholder (a play or music glyph from the CSS) until a real picture loads.
+  li.innerHTML = `<div class="thumb"><img alt="" /></div><div><div class="title"></div><div class="meta"></div><div class="bar" aria-hidden="true"><div></div></div></div><div class="act"><button type="button" class="ghost small cancel">Cancel</button></div>`;
+  setTitle(li, (info && info.title) || url);
+  setThumb(li, info && info.thumbnail);
   li.dataset.base = [li.dataset.fmt, info && info.site, info && fmtTime(info.duration)].filter(Boolean).join(" · ");
   li.querySelector(".meta").textContent = `${li.dataset.base} · waiting...`;
   $("#list").prepend(li);
   return li;
 }
 
+function setThumb(li, src) {
+  if (!src) return;
+  const img = li.querySelector("img");
+  img.addEventListener("error", () => img.remove(), { once: true }); // keep the placeholder
+  img.src = src;
+}
+
 // Batch: fetch the title and thumbnail alongside the download.
 async function fillInfo(li, url) {
   try {
     const info = await kuha.getInfo(url);
-    li.querySelector(".title").textContent = info.title || url;
-    if (info.thumbnail) li.querySelector("img").src = info.thumbnail;
+    setTitle(li, info.title || url);
+    setThumb(li, info.thumbnail);
     li.dataset.base = [li.dataset.fmt, info.site, fmtTime(info.duration)].filter(Boolean).join(" · ");
   } catch {
     // The download itself reports any real error.
@@ -237,31 +388,37 @@ kuha.onProgress((j) => {
   if (!li) return;
   const meta = li.querySelector(".meta");
   const base = li.dataset.base;
-  li.querySelector(".bar div").style.width = `${j.progress}%`;
+  li.querySelector(".bar div").style.transform = `scaleX(${j.progress / 100})`; // transform, not width: no layout work
   if (j.status === "queued") meta.textContent = `${base} · waiting...`;
   if (j.status === "downloading") meta.textContent = `${base} · ${j.progress.toFixed(0)}%`;
   if (j.status === "converting") meta.textContent = `${base} · converting...`;
-  if (j.status === "error") fail(li, j.error);
+  if (j.status === "error") {
+    fail(li, j.error);
+    if (mode !== "downloads") toast(`A download failed: ${j.error}`, { error: true, view: true });
+  }
   if (j.status === "cancelled") {
     li.classList.add("cancelled");
     meta.textContent = `${base} · cancelled`;
     li.querySelector(".act").replaceChildren();
   }
   if (j.status === "done") {
+    const name = li.dataset.name;
     li.classList.add("done");
     meta.textContent = `${base} · saved`;
-    const open = button("Open", "ghost small ok", () => kuha.openFile(j.file));
-    const folder = button("Show in folder", "ghost small", () => kuha.showInFolder(j.file));
+    const open = button("Open", `Open ${name}`, "ghost small ok", () => kuha.openFile(j.file));
+    const folder = button("Show in folder", `Show ${name} in its folder`, "ghost small", () => kuha.showInFolder(j.file));
     li.querySelector(".act").replaceChildren(open, folder);
+    if (mode !== "downloads") toast(`Saved: ${name}`, { view: true });
   }
 });
 
-function button(text, cls, onClick) {
+function button(text, label, cls, onClick) {
   const b = document.createElement("button");
   b.type = "button";
   b.className = cls;
   b.textContent = text;
-  b.addEventListener("click", () => onClick().catch((e) => alert(e.message)));
+  b.setAttribute("aria-label", label);
+  b.addEventListener("click", () => onClick().catch((e) => toast(`${e.message} Check that the file is still there.`, { error: true })));
   return b;
 }
 
@@ -292,19 +449,10 @@ $("#updateYtdlp").addEventListener("click", async () => {
   $("#updateStatus").textContent = "Checking...";
   try {
     const r = await kuha.updateYtdlp();
-    $("#updateStatus").textContent = r.updated ? "Up to date" : "Couldn't update (offline?)";
+    $("#updateStatus").textContent = r.updated ? "Up to date" : "Couldn't update. Check your internet and try again.";
     const v = await kuha.getVersions();
     $("#vYtdlp").textContent = v.ytdlp || "missing";
   } catch (e) {
     $("#updateStatus").textContent = e.message;
   }
 });
-
-function fmtTime(s) {
-  if (!s) return "";
-  s = Math.round(s);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(sec).padStart(2, "0");
-}

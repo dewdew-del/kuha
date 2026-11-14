@@ -13,39 +13,58 @@
       <h1>Kuha</h1>
       <p>Open any page with a video. Get MP4 or MP3.</p>
     </div>
-    <button id="openSettings" type="button" class="icon" aria-label="Settings" title="Settings">⚙</button>
+    <button id="openSettings" type="button" class="icon" aria-label="Settings" aria-haspopup="dialog" title="Settings">⚙</button>
   </header>
 
-  <div id="warn" class="warn" hidden></div>
+  <div id="warn" class="warn" role="alert" hidden></div>
 
-  <nav class="tabs" role="tablist">
-    <button type="button" role="tab" class="on" data-tab="browse" aria-selected="true">Browse</button>
-    <button type="button" role="tab" data-tab="batch" aria-selected="false">Batch</button>
-    <button type="button" role="tab" data-tab="downloads" aria-selected="false">Downloads <span id="dlCount" class="count"></span></button>
-  </nav>
+  <div class="tabrow">
+    <nav class="tabs" role="tablist" aria-label="Kuha sections">
+      <button type="button" role="tab" id="tab-browse" class="on" data-tab="browse" aria-selected="true" aria-controls="browse">Browse</button>
+      <button type="button" role="tab" id="tab-batch" data-tab="batch" aria-selected="false" aria-controls="batch" tabindex="-1">Batch</button>
+      <button type="button" role="tab" id="tab-downloads" data-tab="downloads" aria-selected="false" aria-controls="downloads" tabindex="-1">Downloads <span id="dlCount" class="count" aria-hidden="true"></span></button>
+    </nav>
+    <!-- Short messages live here, outside the page area, so the page view can never cover them. -->
+    <div class="toastbox" role="status" aria-live="polite">
+      <div id="toast" class="toast" hidden><span id="toastText"></span><button id="toastView" type="button" class="link" hidden>View</button></div>
+    </div>
+  </div>
 
-  <section id="browse" class="pane">
+  <section id="browse" class="pane" role="tabpanel" aria-labelledby="tab-browse">
     <div class="inputrow addrrow">
-      <button id="back" type="button" class="icon nav" aria-label="Back" title="Back" disabled>←</button>
-      <button id="fwd" type="button" class="icon nav" aria-label="Forward" title="Forward" disabled>→</button>
-      <button id="reload" type="button" class="icon nav" aria-label="Reload" title="Reload" disabled>⟳</button>
-      <input id="addr" type="text" aria-label="Link or site" placeholder="Paste a video link or type a site" autocomplete="off" spellcheck="false" />
-      <button id="goAddr" type="button" class="primary">Go</button>
+      <button id="back" type="button" class="icon nav" aria-label="Back" title="Back (Alt+Left)" disabled>←</button>
+      <button id="fwd" type="button" class="icon nav" aria-label="Forward" title="Forward (Alt+Right)" disabled>→</button>
+      <button id="reload" type="button" class="icon nav" aria-label="Reload" title="Reload (F5)" disabled>⟳</button>
+      <input id="addr" type="text" aria-label="Link or site" title="Link or site (Ctrl+L)" placeholder="Paste a video link or type a site" autocomplete="off" spellcheck="false" />
+      <button id="paste" type="button" class="ghost" title="Paste the link from your clipboard">Paste</button>
+      <button id="goAddr" type="button" class="primary" disabled>Go</button>
+      <div id="loadbar" class="loadbar" aria-hidden="true"></div>
     </div>
     <p id="addrError" class="err" role="alert" hidden></p>
 
     <!-- The page view (a separate native layer) is laid exactly over this box. -->
-    <div id="pageArea">
-      <p id="hint">Paste a video link or type a site, then press play.</p>
-      <p id="pageError" class="err" role="alert" hidden></p>
+    <div id="pageArea" role="region" aria-label="Web page">
+      <div id="hint">
+        <h2>Get a video in 3 steps</h2>
+        <ol>
+          <li>Paste a video link above, or type a site like youtube.com.</li>
+          <li>Play the video on the page.</li>
+          <li>When Kuha finds it, press Download.</li>
+        </ol>
+        <p class="muted">Shortcuts: Ctrl+L address, Alt+Left back, F5 reload, Esc stop.</p>
+      </div>
+      <div id="pageErrorBox" hidden>
+        <p id="pageError" class="err" role="alert"></p>
+        <button id="retry" type="button" class="ghost">Try again</button>
+      </div>
     </div>
 
     <div id="found" class="foundbar" aria-live="polite" hidden>
       <label id="foundLabel" for="foundPick">Video found:</label>
       <select id="foundPick"></select>
       <div class="seg" role="group" aria-label="Format">
-        <button type="button" class="on" data-fmt="mp4">MP4 video</button>
-        <button type="button" data-fmt="mp3">MP3 audio</button>
+        <button type="button" class="on" data-fmt="mp4" aria-pressed="true">MP4 video</button>
+        <button type="button" data-fmt="mp3" aria-pressed="false">MP3 audio</button>
       </div>
       <select class="quality" aria-label="Video quality">
         <option value="best">Best quality</option>
@@ -58,14 +77,15 @@
     </div>
   </section>
 
-  <section id="batch" class="pane scroll" hidden>
+  <section id="batch" class="pane scroll" role="tabpanel" aria-labelledby="tab-batch" hidden>
     <div class="narrow card">
       <label for="links">Links (one per line)</label>
-      <textarea id="links" rows="8" spellcheck="false" placeholder="https://www.youtube.com/watch?v=...&#10;https://www.tiktok.com/@user/video/...&#10;https://www.facebook.com/reel/..."></textarea>
+      <textarea id="links" rows="8" spellcheck="false" aria-describedby="batchHint" placeholder="https://www.youtube.com/watch?v=...&#10;https://www.tiktok.com/@user/video/...&#10;https://www.facebook.com/reel/..."></textarea>
+      <p id="batchHint" class="muted">Paste links that start with http:// or https://.</p>
       <div class="row">
         <div class="seg" role="group" aria-label="Format">
-          <button type="button" class="on" data-fmt="mp4">MP4 video</button>
-          <button type="button" data-fmt="mp3">MP3 audio</button>
+          <button type="button" class="on" data-fmt="mp4" aria-pressed="true">MP4 video</button>
+          <button type="button" data-fmt="mp3" aria-pressed="false">MP3 audio</button>
         </div>
         <select class="quality" aria-label="Video quality">
           <option value="best">Best quality</option>
@@ -79,23 +99,23 @@
     </div>
   </section>
 
-  <section id="downloads" class="pane scroll" hidden>
+  <section id="downloads" class="pane scroll" role="tabpanel" aria-labelledby="tab-downloads" hidden>
     <div class="narrow">
       <div class="savebar">
         <span>Saving to: <strong id="saveDir">…</strong></span>
-        <button id="changeFolder" type="button" class="ghost small">Change</button>
+        <button id="changeFolder" type="button" class="ghost small">Change folder</button>
       </div>
-      <p id="noDownloads" class="muted">No downloads yet.</p>
-      <ul id="list"></ul>
+      <p id="noDownloads" class="muted">Nothing here yet. Videos you download will show up here.</p>
+      <ul id="list" aria-label="Downloads"></ul>
     </div>
   </section>
 
   <footer>Only download videos you own or have permission to use.</footer>
 </main>
 
-<dialog id="settings">
+<dialog id="settings" aria-labelledby="settingsTitle">
   <form method="dialog">
-    <h2>Settings</h2>
+    <h2 id="settingsTitle">Settings</h2>
     <label for="defFormat">Default format</label>
     <select id="defFormat">
       <option value="mp4">MP4 video</option>
@@ -109,21 +129,22 @@
       <option value="480">480p</option>
       <option value="360">360p</option>
     </select>
-    <label class="check"><input id="blockAds" type="checkbox" /> Block ads in Browse</label>
-    <p class="muted hint">Turn this off if a site refuses to work. Reload the page after changing it.</p>
+    <label class="check"><input id="blockAds" type="checkbox" aria-describedby="adsHint" /> Block ads in Browse</label>
+    <p id="adsHint" class="muted hint">Turn this off if a site refuses to work. Reload the page after changing it.</p>
     <div class="versions">
       <div>Kuha <span id="vApp">…</span></div>
       <div>yt-dlp <span id="vYtdlp">…</span></div>
     </div>
     <div class="row">
       <button id="updateYtdlp" type="button" class="ghost">Update yt-dlp</button>
-      <span id="updateStatus" class="muted"></span>
+      <span id="updateStatus" class="muted" role="status"></span>
       <button class="primary" value="close">Done</button>
     </div>
   </form>
 </dialog>
 
 <script src="links.js"></script>
+<script src="ui.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

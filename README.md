@@ -26,6 +26,8 @@ Built with Electron, powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [
 2. Press play on the video.
 3. A **Video found** bar appears at the bottom. Pick MP4 or MP3 and click **Download**.
 
+Shortcuts (while Kuha's own window has the keyboard, not after you click inside the web page): **Ctrl+L** address box, **Alt+Left / Alt+Right** back and forward, **F5** or **Ctrl+R** reload the page, **Esc** stop loading.
+
 Kuha finds videos two ways at once. It asks yt-dlp about the page, which gives the best quality on the sites yt-dlp knows (YouTube, TikTok, Facebook and many more). It also watches what the page loads, which catches plain video files and streams (HLS `.m3u8`, DASH `.mpd`) on sites yt-dlp has never heard of.
 
 Web pages are kept apart from the rest of the app: they can't use your camera, microphone or location, can't open pop-up windows, and can't save files on their own.

@@ -3,7 +3,7 @@
   color-scheme: dark;
   --bg: #0f1115; --bg2: #14171d; --card: #181b22; --line: #262a33; --line2: #2c313b; --hover: #2f3440; --off-bg: #2a2e38;
   --text: #e7e9ee; --text2: #c9ced8; --muted: #9aa1ad; --strong: #fff; --glyph: #6b7384;
-  --accent: #8fb8a0; --accent-hover: #a2c6b2; --on-accent: #16181d;
+  --accent: #7cc4c8; --accent-hover: #93d0d3; --on-accent: #16181d;
   --good: #3ecf8e; --good-hover: #57d9a0; --on-good: #0f1115;
   --err: #ff7b72; --bad-text: #ffb4ab; --bad-bg: #2b1a1a; --bad-line: #6b2b2b;
   --ok-bg: #15261f; --ok-line: #24503c; --ok-text: #d7f5e6;
@@ -12,7 +12,7 @@
   color-scheme: light;
   --bg: #f6f7f9; --bg2: #eef0f4; --card: #ffffff; --line: #d9dde4; --line2: #c3c9d3; --hover: #dfe3ea; --off-bg: #e3e6ec;
   --text: #16181d; --text2: #3d4350; --muted: #586070; --strong: #0b0c0f; --glyph: #9aa3b2;
-  --accent: #4d7a62; --accent-hover: #3f6a53; --on-accent: #ffffff;
+  --accent: #2f7f86; --accent-hover: #276a70; --on-accent: #ffffff;
   --good: #2f8f5f; --good-hover: #267a50; --on-good: #ffffff;
   --err: #b3261e; --bad-text: #8c1d18; --bad-bg: #fdecea; --bad-line: #f1b5b0;
   --ok-bg: #e6f3ec; --ok-line: #b5d6c3; --ok-text: #1f4d37;
@@ -30,9 +30,11 @@ main { height: 100%; display: flex; flex-direction: column; padding: 14px 16px 1
 header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 header h1 { margin: 0; font-size: 1.5rem; letter-spacing: -0.02em; color: var(--accent); }
 header p { margin: 2px 0 0; color: var(--muted); font-size: .85rem; }
-header h1 { display: flex; align-items: center; gap: 10px; }
+header h1 { display: flex; align-items: center; gap: 10px; line-height: 1; }
+.logo { display: block; flex: none; }
 .logo .body { fill: var(--accent); }
-.logo .arrow { fill: none; stroke: var(--on-accent); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.logo .fold { fill: var(--on-accent); opacity: .35; }
+.logo .play { fill: var(--on-accent); }
 h2 { font-size: 1rem; margin: 24px 0 0; color: var(--text2); }
 .muted { color: var(--muted); font-size: .85rem; }
 .err { color: var(--err); }

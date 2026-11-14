@@ -270,6 +270,7 @@ $("#openSettings").addEventListener("click", async () => {
   const s = await kuha.getSettings();
   $("#defFormat").value = s.format;
   $("#defQuality").value = s.quality;
+  $("#blockAds").checked = s.blockAds !== false;
   $("#updateStatus").textContent = "";
   $("#settings").showModal();
   placeView(); // the page view would cover the dialog
@@ -286,6 +287,7 @@ $("#defQuality").addEventListener("change", () => {
   setQuality($("#defQuality").value);
   kuha.setSettings({ quality });
 });
+$("#blockAds").addEventListener("change", () => kuha.setSettings({ blockAds: $("#blockAds").checked }));
 $("#updateYtdlp").addEventListener("click", async () => {
   $("#updateStatus").textContent = "Checking...";
   try {

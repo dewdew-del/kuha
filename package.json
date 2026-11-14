@@ -38,7 +38,8 @@
         "filter": [
           "yt-dlp.exe",
           "ffmpeg.exe",
-          "ffprobe.exe"
+          "ffprobe.exe",
+          "adhosts.txt"
         ]
       }
     ],

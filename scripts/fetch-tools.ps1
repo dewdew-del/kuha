@@ -29,4 +29,14 @@ if (-not ((Test-Path $ffmpeg) -and (Test-Path $ffprobe))) {
   Remove-Item -Recurse -Force $ex, $zip
 } else { Write-Host "ffmpeg.exe and ffprobe.exe already there" }
 
+# Ad and tracker site names for Browse mode's ad blocker (StevenBlack/hosts, MIT licence).
+# Delete vendor\adhosts.txt and run this again to refresh the list.
+$adhosts = Join-Path $vendor "adhosts.txt"
+if (-not (Test-Path $adhosts)) {
+  Write-Host "Downloading the ad blocklist..."
+  Invoke-WebRequest -UseBasicParsing `
+    -Uri "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts" `
+    -OutFile $adhosts
+} else { Write-Host "adhosts.txt already there" }
+
 Write-Host "Tools ready in $vendor"

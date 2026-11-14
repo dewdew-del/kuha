@@ -7,7 +7,11 @@ const settings = require("./src/settings");
 const { createDownloader } = require("./src/downloader");
 const { createBrowser } = require("./src/browser");
 const { toUrl } = require("./src/address");
+const { loadList, isBlocked } = require("./src/adblock");
 
+let adList = new Set();
+// Kept in memory: the page view asks on every request, and reading settings.json each time would lag.
+let blockAds = true;
 let win = null;
 let toolPaths = { ytdlp: null, ffmpeg: null };
 let downloader = null;
@@ -103,6 +107,7 @@ function registerHandlers() {
     const clean = {};
     if (partial.format === "mp4" || partial.format === "mp3") clean.format = partial.format;
     if (["best", "1080", "720", "480", "360"].includes(String(partial.quality))) clean.quality = String(partial.quality);
+    if (typeof partial.blockAds === "boolean") clean.blockAds = blockAds = partial.blockAds;
     return settings.save(settingsFile, clean, defaultSaveDir);
   });
 
@@ -149,6 +154,8 @@ app.whenReady().then(() => {
 
   const resourcesPath = app.isPackaged ? path.join(process.resourcesPath, "vendor") : path.join(__dirname, "vendor");
   toolPaths = tools.init({ resourcesPath, userDataPath: userData });
+  adList = loadList(path.join(resourcesPath, "adhosts.txt"));
+  blockAds = getSettings().blockAds !== false;
 
   downloader = createDownloader({
     ytdlp: toolPaths.ytdlp,
@@ -162,6 +169,7 @@ app.whenReady().then(() => {
   browser = createBrowser({
     win,
     getInfo: (url, signal) => downloader.getInfo(url, signal),
+    shouldBlock: (hostname) => blockAds && isBlocked(hostname, adList),
     onState: (s) => sendToWindow("kuha:browseState", s),
     onFound: (list) => sendToWindow("kuha:found", list),
   });

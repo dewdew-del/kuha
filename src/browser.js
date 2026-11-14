@@ -8,7 +8,7 @@ const isWeb = (url) => /^https?:\/\//i.test(String(url));
 const LOOKUP_DELAY_MS = 800;
 const LOAD_ERROR = "Couldn't open this page. Check the address and your internet.";
 
-function createBrowser({ win, getInfo, onState, onFound }) {
+function createBrowser({ win, getInfo, shouldBlock, onState, onFound }) {
   const ses = session.fromPartition("persist:browse");
   // Sites treat an "Electron" browser oddly; the same string is sent with downloads.
   ses.setUserAgent(ses.getUserAgent().replace(/\s(?:kuha|Electron)\/\S+/gi, ""));
@@ -51,6 +51,19 @@ function createBrowser({ win, getInfo, onState, onFound }) {
     lastFound = key;
     onFound(list);
   }
+
+  // Ad blocking: cancel requests to known ad/tracker sites before they load. The page the user
+  // asked for (mainFrame) is never blocked, only what that page pulls in. Runs for every request,
+  // so it is one name lookup and nothing else.
+  ses.webRequest.onBeforeRequest((d, done) => {
+    let cancel = false;
+    if (d.resourceType !== "mainFrame" && isWeb(d.url)) {
+      try {
+        cancel = shouldBlock(new URL(d.url).hostname);
+      } catch {}
+    }
+    done({ cancel });
+  });
 
   // Header checks only: this runs for every response the page gets, so it must stay cheap.
   ses.webRequest.onResponseStarted((d) => {

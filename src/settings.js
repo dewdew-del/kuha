@@ -2,7 +2,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const defaults = (saveDir) => ({ saveDir, format: "mp4", quality: "720" });
+const defaults = (saveDir) => ({ saveDir, format: "mp4", quality: "720", blockAds: true });
 
 function load(file, defaultSaveDir) {
   try {

@@ -11,6 +11,7 @@ Built with Electron, powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [
 ## Features
 - **Browse mode**: a browser inside Kuha that spots videos on the page you're watching
 - **One box for everything**: paste a video link, type a site, or type words to search
+- **Ad blocker**: Browse mode skips about 77,000 known ad and tracker sites, so pages load lighter. Switch it off in Settings if a site refuses to work
 - **Batch download**: paste many links, one per line. Duplicates and non-links are skipped, and up to 3 download at a time
 - **MP4** (360p up to best quality) or **MP3** (best audio quality)
 - **Fast streams**: stream pieces are fetched 8 at a time
@@ -35,6 +36,9 @@ Web pages are kept apart from the rest of the app: they can't use your camera, m
 - **Some players can't be caught.** If a site feeds its player in a way that leaves no file or stream address, and yt-dlp doesn't know the site, no bar appears.
 - **Ads get found too.** If the bar lists more than one video, pick the one you want.
 - **Small clips are skipped.** Video files under 1 MB are ignored to keep stream pieces and tiny ads out of the list.
+- **The ad blocker doesn't catch everything.** It blocks by site name, so ads served from the same place as the video (YouTube's own ads, for example) still play, and some empty ad boxes stay on the page.
+
+The blocklist is [StevenBlack/hosts](https://github.com/StevenBlack/hosts) (MIT licence), bundled when Kuha is built.
 
 ## Tested sites
 | Site | MP4 | MP3 |
@@ -63,7 +67,7 @@ Requires [Node.js](https://nodejs.org/) 18 or newer, on Windows.
 git clone https://github.com/dewdew-del/kuha.git
 cd kuha
 npm install
-npm run fetch-tools   # downloads yt-dlp, ffmpeg and ffprobe into .\vendor
+npm run fetch-tools   # downloads yt-dlp, ffmpeg, ffprobe and the ad blocklist into .\vendor
 npm start             # run the app
 npm test              # unit tests
 npm run dist          # build dist\Kuha-Setup-1.1.0.exe

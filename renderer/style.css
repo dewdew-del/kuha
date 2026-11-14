@@ -136,7 +136,7 @@ select:disabled { opacity: .5; }
   flex: 1; min-height: 0; display: grid; place-items: center; padding: 24px; overflow: auto;
   background: var(--bg2); border: 1px solid var(--line); color: var(--muted);
 }
-#hint { max-width: 420px; margin: 0; font-size: 1.15rem; color: var(--text2); }
+#hint { max-width: 420px; margin: 0; font-size: .9rem; color: var(--muted); }
 #pageErrorBox { text-align: center; display: grid; gap: 12px; justify-items: center; max-width: 420px; }
 #pageError { margin: 0; }
 

@@ -10,7 +10,7 @@
 <main>
   <header>
     <div>
-      <h1><svg class="logo" width="30" height="30" viewBox="0 0 64 64" aria-hidden="true"><path class="body" d="M14 6h36a8 8 0 0 1 8 8v22L36 58H14a8 8 0 0 1-8-8V14a8 8 0 0 1 8-8z"/><path class="fold" d="M36 58V44a8 8 0 0 1 8-8h14z"/><path class="play" d="M24 20l16 9-16 9z"/></svg>Kuha</h1>
+      <h1 aria-label="Kuha"><svg class="logo" width="30" height="30" viewBox="0 0 64 64" role="img" aria-label="Kuha"><path class="body" d="M14 6h36a8 8 0 0 1 8 8v22L36 58H14a8 8 0 0 1-8-8V14a8 8 0 0 1 8-8z"/><path class="fold" d="M36 58V44a8 8 0 0 1 8-8h14z"/><path class="play" d="M24 20l16 9-16 9z"/></svg></h1>
     </div>
     <button id="openSettings" type="button" class="icon" aria-label="Settings" aria-haspopup="dialog" title="Settings">⚙</button>
   </header>
@@ -43,7 +43,7 @@
 
     <!-- The page view (a separate native layer) is laid exactly over this box. -->
     <div id="pageArea" role="region" aria-label="Web page">
-      <p id="hint">Open any page with a video. Get MP4 or MP3.</p>
+      <p id="hint">What do you want to download with Kuha?</p>
       <div id="pageErrorBox" hidden>
         <p id="pageError" class="err" role="alert"></p>
         <button id="retry" type="button" class="ghost">Try again</button>

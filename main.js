@@ -32,6 +32,7 @@ function createWindow() {
     minWidth: 640,
     minHeight: 560,
     title: "Kuha",
+    icon: path.join(__dirname, "build", "icon.png"),
     backgroundColor: "#0f1115",
     autoHideMenuBar: true,
     webPreferences: {

@@ -16,4 +16,19 @@ function samePage(a, b) {
   return bare(a) === bare(b);
 }
 
-module.exports = { toUrl, samePage };
+// True when two addresses belong to the same main site (www.example.com and video.example.com).
+// shortcut: "main site" is the last two labels, so a.co.uk and b.co.uk count as one site;
+// upgrade to a public-suffix list if that lets ad pop-ups through.
+function sameSite(a, b) {
+  const site = (u) => {
+    try {
+      return new URL(u).hostname.toLowerCase().split(".").slice(-2).join(".");
+    } catch {
+      return null;
+    }
+  };
+  const x = site(a);
+  return !!x && x === site(b);
+}
+
+module.exports = { toUrl, samePage, sameSite };

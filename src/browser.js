@@ -2,7 +2,7 @@
 // Web pages here get no preload, so they can never reach window.kuha or anything of Kuha's.
 const { WebContentsView, session } = require("electron");
 const { classify, fromHeaders, createFinds, pageName } = require("./sniff");
-const { samePage } = require("./address");
+const { samePage, sameSite } = require("./address");
 
 const isWeb = (url) => /^https?:\/\//i.test(String(url));
 const LOOKUP_DELAY_MS = 800;
@@ -52,17 +52,20 @@ function createBrowser({ win, getInfo, shouldBlock, onState, onFound }) {
     onFound(list);
   }
 
-  // Ad blocking: cancel requests to known ad/tracker sites before they load. The page the user
-  // asked for (mainFrame) is never blocked, only what that page pulls in. Runs for every request,
-  // so it is one name lookup and nothing else.
-  ses.webRequest.onBeforeRequest((d, done) => {
-    let cancel = false;
-    if (d.resourceType !== "mainFrame" && isWeb(d.url)) {
-      try {
-        cancel = shouldBlock(new URL(d.url).hostname);
-      } catch {}
+  const isAd = (url) => {
+    try {
+      return shouldBlock(new URL(url).hostname);
+    } catch {
+      return false;
     }
-    done({ cancel });
+  };
+
+  // Ad blocking: cancel what a page pulls in from known ad/tracker sites before it loads.
+  // The page itself (mainFrame) is not cancelled here, because that would leave a blank error
+  // page; a page trying to send the user to an ad site is stopped in will-navigate below.
+  // Runs for every request, so it is one name lookup and nothing else.
+  ses.webRequest.onBeforeRequest((d, done) => {
+    done({ cancel: d.resourceType !== "mainFrame" && isWeb(d.url) && isAd(d.url) });
   });
 
   // Header checks only: this runs for every response the page gets, so it must stay cheap.
@@ -126,13 +129,17 @@ function createBrowser({ win, getInfo, shouldBlock, onState, onFound }) {
     sendState();
   });
 
-  // No pop-up windows: a link that wants a new window opens here instead.
+  // No pop-up windows. A link to the same site that wants a new window opens here instead;
+  // a pop-up to any other site is dropped, because that is how click-hijack ads take over a page.
   wc.setWindowOpenHandler(({ url }) => {
-    if (isWeb(url)) wc.loadURL(url).catch(() => {});
+    if (isWeb(url) && sameSite(url, wc.getURL())) wc.loadURL(url).catch(() => {});
     return { action: "deny" };
   });
+  // Navigation the page starts (a link, a script, a redirect): web addresses only, and never to
+  // an ad site. Stopping it here keeps the user on the page they were on. An address the user
+  // types goes through go() and does not pass here, so they can still open any site themselves.
   const webOnly = (e, url) => {
-    if (!isWeb(url)) e.preventDefault();
+    if (!isWeb(url) || isAd(url)) e.preventDefault();
   };
   wc.on("will-navigate", webOnly);
   // Electron shows no "Leave site?" box, so a page with a beforeunload handler would silently

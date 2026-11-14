@@ -35,3 +35,14 @@ test("samePage: only the #fragment (or nothing) changed", () => {
   assert.equal(samePage("", "https://a.com/"), false);
   assert.equal(samePage("not a url", "not a url"), true);
 });
+
+const { sameSite } = require("../src/address");
+
+test("sameSite: same main site name, whatever the subdomain", () => {
+  assert.equal(sameSite("https://www.example.com/a", "https://video.example.com/b"), true);
+  assert.equal(sameSite("https://example.com/", "http://EXAMPLE.com/x"), true);
+  assert.equal(sameSite("https://example.com/", "https://ads-popup.net/win"), false);
+  assert.equal(sameSite("https://example.com/", "https://example.com.evil.net/"), false);
+  assert.equal(sameSite("https://example.com/", "not a url"), false);
+  assert.equal(sameSite("", ""), false);
+});

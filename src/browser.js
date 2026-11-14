@@ -122,6 +122,9 @@ function createBrowser({ win, getInfo, onState, onFound }) {
     if (!isWeb(url)) e.preventDefault();
   };
   wc.on("will-navigate", webOnly);
+  // Electron shows no "Leave site?" box, so a page with a beforeunload handler would silently
+  // refuse every Back / Go. The user chose to leave, so let them.
+  wc.on("will-prevent-unload", (e) => e.preventDefault());
   wc.on("will-redirect", webOnly);
 
   return {

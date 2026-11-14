@@ -1,6 +1,6 @@
 // Kuha - Electron main process: window, tools, downloader, page view, and the IPC handlers
 // behind window.kuha (see preload.js).
-const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, dialog, Menu } = require("electron");
 const path = require("path");
 const tools = require("./src/tools");
 const settings = require("./src/settings");
@@ -140,6 +140,9 @@ function registerHandlers() {
 }
 
 app.whenReady().then(() => {
+  // No default menu: its Ctrl+R would reload Kuha's own screen (wiping the download list) when
+  // someone presses it to refresh a web page, and its zoom keys would misplace the page view.
+  Menu.setApplicationMenu(null);
   const userData = app.getPath("userData");
   settingsFile = path.join(userData, "settings.json");
   defaultSaveDir = path.join(app.getPath("downloads"), "Kuha");

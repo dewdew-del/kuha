@@ -11,7 +11,6 @@
   <header>
     <div>
       <h1><svg class="logo" width="28" height="28" viewBox="0 0 64 64" aria-hidden="true"><path class="body" d="M8 8h48v34a10 10 0 0 1-10 10H18A10 10 0 0 1 8 42z"/><path class="arrow" d="M32 16v20M23 28l9 9 9-9"/></svg>Kuha</h1>
-      <p>Open any page with a video. Get MP4 or MP3.</p>
     </div>
     <button id="openSettings" type="button" class="icon" aria-label="Settings" aria-haspopup="dialog" title="Settings">⚙</button>
   </header>
@@ -44,15 +43,7 @@
 
     <!-- The page view (a separate native layer) is laid exactly over this box. -->
     <div id="pageArea" role="region" aria-label="Web page">
-      <div id="hint">
-        <h2>Get a video in 3 steps</h2>
-        <ol>
-          <li>Paste a video link above, or type a site like youtube.com.</li>
-          <li>Play the video on the page.</li>
-          <li>When Kuha finds it, press Download.</li>
-        </ol>
-        <p class="muted">Shortcuts: Ctrl+L address, Alt+Left back, F5 reload, Esc stop.</p>
-      </div>
+      <p id="hint">Open any page with a video. Get MP4 or MP3.</p>
       <div id="pageErrorBox" hidden>
         <p id="pageError" class="err" role="alert"></p>
         <button id="retry" type="button" class="ghost">Try again</button>
@@ -109,8 +100,6 @@
       <ul id="list" aria-label="Downloads"></ul>
     </div>
   </section>
-
-  <footer>Only download videos you own or have permission to use.</footer>
 </main>
 
 <dialog id="settings" aria-labelledby="settingsTitle">
@@ -137,13 +126,15 @@
     </select>
     <label class="check"><input id="blockAds" type="checkbox" aria-describedby="adsHint" /> Block ads in Browse</label>
     <p id="adsHint" class="muted hint">Turn this off if a site refuses to work. Reload the page after changing it.</p>
-    <div class="versions">
-      <div>Kuha <span id="vApp">…</span></div>
-      <div>yt-dlp <span id="vYtdlp">…</span></div>
-    </div>
+    <h3 class="keys-title">Shortcuts</h3>
+    <dl class="keys">
+      <dt>Ctrl+L</dt><dd>Go to the address box</dd>
+      <dt>Alt+Left</dt><dd>Back</dd>
+      <dt>Alt+Right</dt><dd>Forward</dd>
+      <dt>F5 or Ctrl+R</dt><dd>Reload the page</dd>
+      <dt>Esc</dt><dd>Stop loading</dd>
+    </dl>
     <div class="row">
-      <button id="updateYtdlp" type="button" class="ghost">Update yt-dlp</button>
-      <span id="updateStatus" class="muted" role="status"></span>
       <button class="primary" value="close">Done</button>
     </div>
   </form>

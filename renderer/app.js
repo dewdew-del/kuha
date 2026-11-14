@@ -445,12 +445,8 @@ $("#openSettings").addEventListener("click", async () => {
   $("#defFormat").value = s.format;
   $("#defQuality").value = s.quality;
   $("#blockAds").checked = s.blockAds !== false;
-  $("#updateStatus").textContent = "";
   $("#settings").showModal();
   placeView(); // the page view would cover the dialog
-  const v = await kuha.getVersions();
-  $("#vApp").textContent = v.app;
-  $("#vYtdlp").textContent = v.ytdlp || "missing";
 });
 $("#settings").addEventListener("close", placeView);
 $("#theme").addEventListener("change", () => {
@@ -468,14 +464,3 @@ $("#defQuality").addEventListener("change", () => {
   kuha.setSettings({ quality });
 });
 $("#blockAds").addEventListener("change", () => kuha.setSettings({ blockAds: $("#blockAds").checked }));
-$("#updateYtdlp").addEventListener("click", async () => {
-  $("#updateStatus").textContent = "Checking...";
-  try {
-    const r = await kuha.updateYtdlp();
-    $("#updateStatus").textContent = r.updated ? "Up to date" : "Couldn't update. Check your internet and try again.";
-    const v = await kuha.getVersions();
-    $("#vYtdlp").textContent = v.ytdlp || "missing";
-  } catch (e) {
-    $("#updateStatus").textContent = e.message;
-  }
-});

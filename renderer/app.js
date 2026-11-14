@@ -12,6 +12,22 @@ const cards = new Map(); // job id -> card element
 const running = new Set(); // ids of jobs that haven't finished
 const calm = matchMedia("(prefers-reduced-motion: reduce)"); // script-driven motion honours this too
 
+// ---------- Theme (kept in this window's own storage; "system" follows Windows) ----------
+const light = matchMedia("(prefers-color-scheme: light)");
+function themePref() {
+  try {
+    return localStorage.getItem("theme") || "system";
+  } catch {
+    return "system";
+  }
+}
+function applyTheme() {
+  const p = themePref();
+  document.documentElement.dataset.theme = p === "system" ? (light.matches ? "light" : "dark") : p;
+}
+light.addEventListener("change", applyTheme);
+applyTheme();
+
 // ---------- Start-up ----------
 (async () => {
   $("#addr").focus(); // ready to paste
@@ -425,6 +441,7 @@ function button(text, label, cls, onClick) {
 // ---------- Settings ----------
 $("#openSettings").addEventListener("click", async () => {
   const s = await kuha.getSettings();
+  $("#theme").value = themePref();
   $("#defFormat").value = s.format;
   $("#defQuality").value = s.quality;
   $("#blockAds").checked = s.blockAds !== false;
@@ -436,6 +453,12 @@ $("#openSettings").addEventListener("click", async () => {
   $("#vYtdlp").textContent = v.ytdlp || "missing";
 });
 $("#settings").addEventListener("close", placeView);
+$("#theme").addEventListener("change", () => {
+  try {
+    localStorage.setItem("theme", $("#theme").value);
+  } catch {}
+  applyTheme();
+});
 $("#defFormat").addEventListener("change", () => {
   setFormat($("#defFormat").value);
   kuha.setSettings({ format });

@@ -10,7 +10,7 @@
 <main>
   <header>
     <div>
-      <h1>Kuha</h1>
+      <h1><svg class="logo" width="28" height="28" viewBox="0 0 64 64" aria-hidden="true"><path class="body" d="M8 8h48v34a10 10 0 0 1-10 10H18A10 10 0 0 1 8 42z"/><path class="arrow" d="M32 16v20M23 28l9 9 9-9"/></svg>Kuha</h1>
       <p>Open any page with a video. Get MP4 or MP3.</p>
     </div>
     <button id="openSettings" type="button" class="icon" aria-label="Settings" aria-haspopup="dialog" title="Settings">⚙</button>
@@ -116,6 +116,12 @@
 <dialog id="settings" aria-labelledby="settingsTitle">
   <form method="dialog">
     <h2 id="settingsTitle">Settings</h2>
+    <label for="theme">Appearance</label>
+    <select id="theme">
+      <option value="system">Match Windows</option>
+      <option value="dark">Dark</option>
+      <option value="light">Light</option>
+    </select>
     <label for="defFormat">Default format</label>
     <select id="defFormat">
       <option value="mp4">MP4 video</option>

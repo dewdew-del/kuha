@@ -238,8 +238,7 @@ function placeView() {
 new ResizeObserver(placeView).observe($("#pageArea"));
 
 // ---------- Browse: found videos ----------
-kuha.browse.onFound((list) => {
-  finds = list;
+function renderFound(list) {
   const pick = $("#foundPick");
   const previous = pick.value;
   pick.replaceChildren(...list.map((f) => new Option(f.label, f.id)));
@@ -249,6 +248,26 @@ kuha.browse.onFound((list) => {
   $("#foundLabel").textContent = list.length > 1 ? `${list.length} videos found:` : "Video found:";
   $("#found").hidden = list.length === 0;
   placeView(); // the bar appearing or going changes the page area's size
+}
+
+// A short wait before the Download button appears: yt-dlp's own lookup of the page (which gives
+// the full, correctly assembled video) usually lands a moment after the first raw network find,
+// so this gives it a chance to show up and become the default pick instead of a half-caught piece.
+const FOUND_DELAY_MS = 1200;
+let foundSince = null;
+let foundRenderTimer = null;
+kuha.browse.onFound((list) => {
+  finds = list;
+  clearTimeout(foundRenderTimer);
+  if (!list.length) {
+    foundSince = null;
+    renderFound(list);
+    return;
+  }
+  if (foundSince === null) foundSince = Date.now();
+  const wait = FOUND_DELAY_MS - (Date.now() - foundSince);
+  if (wait <= 0) renderFound(list);
+  else foundRenderTimer = setTimeout(() => renderFound(finds), wait);
 });
 $("#foundPick").addEventListener("change", () => (userPicked = true));
 

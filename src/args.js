@@ -13,7 +13,7 @@ function safeTitle(title) {
   return clean || "video";
 }
 
-function buildArgs({ url, format, quality, saveDir, ffmpegPath, referer, userAgent, title }) {
+function buildArgs({ url, format, quality, saveDir, ffmpegPath, referer, userAgent, title, cookiesFile }) {
   // Found videos have no yt-dlp title or id, so they are named after the page plus a hash
   // of the address. The hash keeps two videos from the same page apart.
   const name = title
@@ -38,6 +38,8 @@ function buildArgs({ url, format, quality, saveDir, ffmpegPath, referer, userAge
   // Many sites refuse a video request that doesn't come from their own page.
   if (referer) args.push("--referer", referer);
   if (userAgent) args.push("--user-agent", userAgent);
+  // Lets yt-dlp's site extractors (e.g. Instagram's story extractor) see private/login-only content.
+  if (cookiesFile) args.push("--cookies", cookiesFile);
   if (format === "mp3") {
     args.push("-x", "--audio-format", "mp3", "--audio-quality", "0");
   } else {

@@ -1,6 +1,8 @@
 // The page view: a locked-down browser inside the Kuha window that reports the videos a page loads.
 // Web pages here get no preload, so they can never reach window.kuha or anything of Kuha's.
-const { WebContentsView, session } = require("electron");
+const { WebContentsView, session, app } = require("electron");
+const fs = require("fs");
+const path = require("path");
 const { classify, fromHeaders, createFinds, pageName } = require("./sniff");
 const { samePage, sameSite } = require("./address");
 
@@ -27,6 +29,25 @@ function createBrowser({ win, getInfo, shouldBlock, onState, onFound }) {
   view.setBackgroundColor("#ffffff");
   view.setVisible(false);
   win.contentView.addChildView(view);
+
+  // Lets yt-dlp see whatever this browser is signed into (e.g. a private Instagram story), so its
+  // site extractors can fetch it properly instead of Kuha only seeing raw, often-fragmented pieces.
+  const cookiesPath = path.join(app.getPath("temp"), "kuha-cookies.txt");
+  async function writeCookies() {
+    try {
+      const cookies = await ses.cookies.get({});
+      if (!cookies.length) return null;
+      const lines = cookies.map((c) => {
+        const flag = c.domain.startsWith(".") ? "TRUE" : "FALSE";
+        const expiry = c.session ? 0 : Math.round(c.expirationDate || 0);
+        return [c.domain, flag, c.path || "/", c.secure ? "TRUE" : "FALSE", expiry, c.name, c.value].join("\t");
+      });
+      fs.writeFileSync(cookiesPath, `# Netscape HTTP Cookie File\n${lines.join("\n")}\n`);
+      return cookiesPath;
+    } catch {
+      return null;
+    }
+  }
 
   const finds = createFinds();
   let error = null;
@@ -101,9 +122,11 @@ function createBrowser({ win, getInfo, shouldBlock, onState, onFound }) {
     lookupAbort = null;
     const lookupUrl = pageUrl;
     if (!isWeb(lookupUrl) || new URL(lookupUrl).hostname === "www.google.com") return;
-    lookupTimer = setTimeout(() => {
+    lookupTimer = setTimeout(async () => {
       lookupAbort = new AbortController();
-      getInfo(lookupUrl, lookupAbort.signal).then(
+      const cookiesFile = await writeCookies();
+      if (wc.isDestroyed() || wc.getURL() !== lookupUrl) return; // the user moved on while cookies were being written
+      getInfo(lookupUrl, lookupAbort.signal, cookiesFile).then(
         (info) => {
           if (wc.isDestroyed() || wc.getURL() !== lookupUrl) return; // the user has moved on
           finds.add({ kind: "site", url: lookupUrl, title: info.title });
@@ -177,11 +200,12 @@ function createBrowser({ win, getInfo, shouldBlock, onState, onFound }) {
       await ses.clearAuthCache();
     },
     // Everything the downloader needs for a find. The screen only ever holds the id.
-    getFind(id) {
+    async getFind(id) {
       const f = finds.get(id);
       if (!f) return undefined;
-      if (f.kind === "site") return { kind: f.kind, url: f.url };
-      return { kind: f.kind, url: f.url, referer: wc.getURL(), userAgent: ses.getUserAgent(), title: pageName(wc.getTitle(), wc.getURL()) };
+      const cookiesFile = await writeCookies();
+      if (f.kind === "site") return { kind: f.kind, url: f.url, cookiesFile };
+      return { kind: f.kind, url: f.url, referer: wc.getURL(), userAgent: ses.getUserAgent(), title: pageName(wc.getTitle(), wc.getURL()), cookiesFile };
     },
   };
 }

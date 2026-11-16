@@ -28,16 +28,16 @@ function createDownloader({ ytdlp, ffmpeg, getSaveDir, spawnFn = childProcess.sp
   const infoQueue = [];
   // An optional AbortSignal drops a lookup nobody wants any more (the page view moved on):
   // a queued one never starts, a running one is killed.
-  function getInfo(url, signal) {
+  function getInfo(url, signal, cookiesFile) {
     return new Promise((resolve, reject) => {
       if (signal && signal.aborted) return reject(new Error("Cancelled"));
-      infoQueue.push({ url, resolve, reject, signal });
+      infoQueue.push({ url, resolve, reject, signal, cookiesFile });
       pumpInfo();
     });
   }
   function pumpInfo() {
     while (infoRunning < concurrency && infoQueue.length) {
-      const { url, resolve, reject, signal } = infoQueue.shift();
+      const { url, resolve, reject, signal, cookiesFile } = infoQueue.shift();
       if (signal && signal.aborted) {
         reject(new Error("Cancelled"));
         continue;
@@ -48,13 +48,16 @@ function createDownloader({ ytdlp, ffmpeg, getSaveDir, spawnFn = childProcess.sp
         fn(v);
         pumpInfo();
       };
-      lookup(url, signal).then(done(resolve), done(reject));
+      lookup(url, signal, cookiesFile).then(done(resolve), done(reject));
     }
   }
 
-  function lookup(url, signal) {
+  function lookup(url, signal, cookiesFile) {
     return new Promise((resolve, reject) => {
-      const p = spawnFn(ytdlp, ["-J", "--no-playlist", "--no-warnings", url], { windowsHide: true });
+      const args = ["-J", "--no-playlist", "--no-warnings"];
+      if (cookiesFile) args.push("--cookies", cookiesFile);
+      args.push(url);
+      const p = spawnFn(ytdlp, args, { windowsHide: true });
       if (signal) signal.addEventListener("abort", () => killFn(p.pid), { once: true });
       let out = "";
       let err = "";
@@ -74,14 +77,14 @@ function createDownloader({ ytdlp, ffmpeg, getSaveDir, spawnFn = childProcess.sp
   }
 
   // referer, userAgent and title are only set for videos found on a page (see buildArgs).
-  function start({ url, format, quality, referer, userAgent, title }) {
+  function start({ url, format, quality, referer, userAgent, title, cookiesFile }) {
     // Two jobs for the same link + format would write to the same file at once.
     for (const j of jobs.values()) {
       if (j.url === url && j.format === format && !j.finished && j.status !== "cancelled") {
         throw new Error("Already downloading this link.");
       }
     }
-    const job = { id: crypto.randomUUID(), url, format, quality, referer, userAgent, title, status: "queued", progress: 0, file: null, error: null, child: null, dests: new Set() };
+    const job = { id: crypto.randomUUID(), url, format, quality, referer, userAgent, title, cookiesFile, status: "queued", progress: 0, file: null, error: null, child: null, dests: new Set() };
     jobs.set(job.id, job);
     queue.push(job);
     emit(job);
@@ -96,8 +99,8 @@ function createDownloader({ ytdlp, ffmpeg, getSaveDir, spawnFn = childProcess.sp
   function run(job) {
     running++;
     job.status = "downloading";
-    const { url, format, quality, referer, userAgent, title } = job;
-    const args = buildArgs({ url, format, quality, referer, userAgent, title, saveDir: getSaveDir(), ffmpegPath: ffmpeg });
+    const { url, format, quality, referer, userAgent, title, cookiesFile } = job;
+    const args = buildArgs({ url, format, quality, referer, userAgent, title, cookiesFile, saveDir: getSaveDir(), ffmpegPath: ffmpeg });
     const child = spawnFn(ytdlp, args, { windowsHide: true });
     job.child = child;
     let out = "";

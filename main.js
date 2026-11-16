@@ -83,10 +83,10 @@ function registerHandlers() {
   handle("download", ({ url, format, quality }) => startJob({ url: String(url), format, quality }));
 
   // The screen passes only the find's id; the address and headers are looked up here.
-  handle("downloadFound", ({ id, format, quality }) => {
-    const f = browser.getFind(String(id));
+  handle("downloadFound", async ({ id, format, quality }) => {
+    const f = await browser.getFind(String(id));
     if (!f) throw new Error("That video is no longer on this page. Play it again so Kuha can find it.");
-    return startJob({ url: f.url, referer: f.referer, userAgent: f.userAgent, title: f.title, format, quality });
+    return startJob({ url: f.url, referer: f.referer, userAgent: f.userAgent, title: f.title, cookiesFile: f.cookiesFile, format, quality });
   });
 
   handle("cancel", (id) => downloader.cancel(String(id)));
@@ -170,7 +170,7 @@ app.whenReady().then(() => {
   createWindow();
   browser = createBrowser({
     win,
-    getInfo: (url, signal) => downloader.getInfo(url, signal),
+    getInfo: (url, signal, cookiesFile) => downloader.getInfo(url, signal, cookiesFile),
     // type "css" only asks whether blocking is on; "ping" tracking beacons are dropped; paths are checked for what a page loads, never for pages.
     shouldBlock: (hostname, url, type) =>
       blockAds && (type === "css" || type === "ping" || isBlocked(hostname, adList) || (type !== "mainFrame" && isAdPath(url))),

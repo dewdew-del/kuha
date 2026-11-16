@@ -1,6 +1,6 @@
 {
   "name": "kuha",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "Kuha - find and download videos as MP4 or MP3",
   "main": "main.js",
   "scripts": {
